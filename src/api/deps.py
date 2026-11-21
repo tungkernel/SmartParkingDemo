@@ -1,47 +1,38 @@
 from __future__ import annotations
 
-import os
-import tomllib
 from functools import lru_cache
-from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from services.auth_service import AuthenticationError, AuthService, AuthUser
-from services.db_service import DatabaseError, DBService
+from core.config import Settings, get_settings
+from core.exceptions import AuthenticationError, DatabaseError
+from services.auth_service import AuthService, AuthUser
+from services.db_service import DBService
+from services.domain.base import AuditActor
 from services.parking_service import ParkingService
 
 _bearer_scheme = HTTPBearer(auto_error=False)
+_WWW_AUTH_HEADERS = {"WWW-Authenticate": "Bearer"}
 
 
-def _load_db_service() -> DBService:
-    env_db = DBService.from_env()
-    if env_db is not None:
-        return env_db
-
-    secrets_path = Path(__file__).resolve().parents[2] / ".streamlit" / "secrets.toml"
-    if secrets_path.exists():
-        with secrets_path.open("rb") as f:
-            data = tomllib.load(f)
-        tidb = data.get("tidb", {})
-        if tidb.get("host") and tidb.get("database") and tidb.get("user") and tidb.get("password"):
-            return DBService(
-                host=str(tidb["host"]),
-                port=int(tidb.get("port", 4000)),
-                database=str(tidb["database"]),
-                user=str(tidb["user"]),
-                password=str(tidb["password"]),
-                pool_size=int(os.getenv("TIDB_POOL_SIZE", "8")),
-                ssl_ca=tidb.get("ssl_ca"),
-            )
-    raise DatabaseError("Thiếu cấu hình kết nối DB (TIDB_* env vars hoặc .streamlit/secrets.toml).")
+def _load_db_service(settings: Settings) -> DBService:
+    try:
+        params = settings.resolve_db_params()
+    except RuntimeError as exc:
+        raise DatabaseError(str(exc)) from exc
+    return DBService(**params)  # type: ignore[arg-type]
 
 
 @lru_cache(maxsize=1)
 def get_db() -> DBService:
-    return _load_db_service()
+    return _load_db_service(get_settings())
+
+
+@lru_cache(maxsize=1)
+def _cached_auth_secret() -> str:
+    return get_settings().resolve_auth_secret()
 
 
 def get_parking_service(db: DBService = Depends(get_db)) -> ParkingService:
@@ -49,7 +40,18 @@ def get_parking_service(db: DBService = Depends(get_db)) -> ParkingService:
 
 
 def get_auth_service(db: DBService = Depends(get_db)) -> AuthService:
-    return AuthService(db)
+    return AuthService(db, secret_key=_cached_auth_secret(), settings=get_settings())
+
+
+def extract_client_ip(request: Request) -> str:
+    """Resolve client IP without trusting spoofable X-Forwarded-For unless peer is a trusted proxy."""
+    peer_ip = (request.client.host if request.client else "unknown")[:64]
+    trusted_proxies = get_settings().trusted_proxy_set
+    if trusted_proxies and ("*" in trusted_proxies or peer_ip in trusted_proxies):
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()[:64]
+    return peer_ip
 
 
 def get_current_user(
@@ -60,13 +62,15 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Vui lòng đăng nhập để tiếp tục.",
+            headers=_WWW_AUTH_HEADERS,
         )
     try:
-        return auth.verify_token(credentials.credentials)
+        return auth.verify_active_token(credentials.credentials)
     except AuthenticationError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc),
+            headers=_WWW_AUTH_HEADERS,
         ) from exc
 
 
@@ -82,3 +86,18 @@ def require_roles(*roles: str) -> Callable[[AuthUser], AuthUser]:
         return user
 
     return _checker
+
+
+def build_audit_actor(request: Request, user: AuthUser) -> AuditActor:
+    return AuditActor(
+        account_id=user.account_id,
+        username=user.username,
+        ip_address=extract_client_ip(request),
+    )
+
+
+def operator_lot_scope(user: AuthUser) -> Optional[int]:
+    """Enforce assigned lot scoping for OPERATOR accounts; ADMIN/ACCOUNTANT see all lots."""
+    if user.role.upper() == "OPERATOR" and user.lot_id is not None:
+        return user.lot_id
+    return None
