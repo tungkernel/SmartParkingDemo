@@ -587,80 +587,15 @@ button[data-baseweb="tab"] {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
-/* Parking lot summary cards */
-.lot-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    margin: 4px 0 16px 0;
-}
-.lot-card {
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 14px;
-    padding: 14px 16px;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
-}
-.lot-card-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 10px;
-}
-.lot-title {
-    font-size: 0.94rem;
-    font-weight: 700;
-    color: #0F172A;
-    line-height: 1.25;
-}
-.lot-loc {
-    font-size: 0.78rem;
-    color: #64748B;
-    margin-top: 2px;
-}
-.lot-pct {
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: #1D4ED8;
-    background: #EFF6FF;
-    border: 1px solid #BFDBFE;
-    padding: 2px 8px;
-    border-radius: 999px;
-    white-space: nowrap;
-}
-.lot-bar-track {
-    width: 100%;
-    height: 7px;
-    background: #F1F5F9;
-    border-radius: 999px;
-    overflow: hidden;
-    margin-bottom: 8px;
-}
-.lot-bar-fill {
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #2563EB, #3B82F6);
-}
+/* Lot status fill variants */
 .lot-bar-fill--warn {
     background: linear-gradient(90deg, #D97706, #F59E0B);
 }
 .lot-bar-fill--full {
     background: linear-gradient(90deg, #DC2626, #EF4444);
 }
-.lot-stats {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.78rem;
-    color: #475569;
-}
 .lot-stats strong {
     color: #0F172A;
-}
-@media (max-width: 900px) {
-    .lot-grid {
-        grid-template-columns: 1fr;
-    }
 }
 /* RFID parking card grid */
 .card-grid {

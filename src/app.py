@@ -1,30 +1,67 @@
 from __future__ import annotations
 
 import html
-import importlib
+import os
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Any, Optional
 
 import altair as alt
 import pandas as pd
 import streamlit as st
 
-import services.parking_service as _parking_service_mod
-import ui.styles as _styles_mod
 from services.db_service import DBConfig, DBService, DatabaseError
-
-if not hasattr(_parking_service_mod.ParkingService, "get_zones_summary"):
-    importlib.reload(_parking_service_mod)
-    importlib.reload(_styles_mod)
-
 from services.parking_service import ParkingService, ValidationError
 from ui.icons import brand_logo_svg, svg_icon
 from ui.styles import DESIGN_SYSTEM_CSS
 
+_LOGO_PATH = Path(__file__).resolve().parents[1] / "assets" / "logo.svg"
+_LEGACY_WRITES_ENABLED = os.getenv("ENABLE_LEGACY_STREAMLIT_WRITES", "0").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
+
+class _ReadOnlyParkingServiceProxy:
+    """Block DB-mutating calls on legacy Streamlit UI unless ENABLE_LEGACY_STREAMLIT_WRITES=1."""
+
+    _WRITE_PREFIXES = (
+        "create_",
+        "update_",
+        "delete_",
+        "add_",
+        "set_",
+        "check_in",
+        "check_out",
+        "register_",
+        "renew_",
+        "cancel_",
+        "move_",
+        "reconcile_",
+        "open_",
+        "close_",
+    )
+
+    def __init__(self, inner: ParkingService) -> None:
+        self._inner = inner
+
+    def __getattr__(self, name: str) -> Any:
+        attr = getattr(self._inner, name)
+        if callable(attr) and name.startswith(self._WRITE_PREFIXES):
+            def _blocked(*_args: Any, **_kwargs: Any) -> Any:
+                raise ValidationError(
+                    "Bản Streamlit kế thừa đang ở chế độ chỉ đọc để bảo vệ RBAC, ca trực và audit_logs. "
+                    "Hãy thao tác ghi qua giao diện React + FastAPI v2.1 hoặc bật ENABLE_LEGACY_STREAMLIT_WRITES=1."
+                )
+
+            return _blocked
+        return attr
+
 
 st.set_page_config(
-    page_title="Smart Parking PTIT",
-    page_icon="assets/logo.svg",
+    page_title="Smart Parking PTIT (Legacy Demo)",
+    page_icon=str(_LOGO_PATH) if _LOGO_PATH.exists() else "🅿️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -57,6 +94,8 @@ def _create_db_service() -> DBService:
                 database=str(cfg["database"]),
                 user=str(cfg["user"]),
                 password=str(cfg["password"]),
+                ssl_ca=str(cfg["ssl_ca"]) if cfg.get("ssl_ca") else None,
+                pool_size=int(os.getenv("TIDB_POOL_SIZE", "8")),
             )
         )
 
@@ -503,7 +542,7 @@ def _render_live_overview_fragment(service: ParkingService) -> None:
 
     head_left, head_right = st.columns([3.6, 1.2])
     head_left.subheader("Sơ đồ vị trí đỗ trực quan")
-    if head_right.button("Làm mới sơ đồ", icon=":material/refresh:", use_container_width=True):
+    if head_right.button("Làm mới sơ đồ", icon=":material/refresh:", width="stretch"):
         _invalidate_data_cache()
         st.rerun(scope="fragment")
 
@@ -854,7 +893,7 @@ def _render_overview_page(service: ParkingService) -> None:
                     sel_s_lbl = st.selectbox("Chọn vị trí", list(slot_lbl_map.keys()), key="maint_slot_sel")
                     sel_s = slot_lbl_map[sel_s_lbl]
                     sb1, sb2, sb3 = st.columns(3)
-                    if sb1.button("Khóa bảo trì", key="btn_slot_lock", use_container_width=True):
+                    if sb1.button("Khóa bảo trì", key="btn_slot_lock", width="stretch"):
                         try:
                             service.set_slot_maintenance(int(sel_s["id"]), True)
                             _invalidate_data_cache()
@@ -862,7 +901,7 @@ def _render_overview_page(service: ParkingService) -> None:
                             st.rerun()
                         except (ValidationError, DatabaseError) as exc:
                             st.error(str(exc))
-                    if sb2.button("Mở khóa", key="btn_slot_unlock", use_container_width=True):
+                    if sb2.button("Mở khóa", key="btn_slot_unlock", width="stretch"):
                         try:
                             service.set_slot_maintenance(int(sel_s["id"]), False)
                             _invalidate_data_cache()
@@ -870,7 +909,7 @@ def _render_overview_page(service: ParkingService) -> None:
                             st.rerun()
                         except (ValidationError, DatabaseError) as exc:
                             st.error(str(exc))
-                    if sb3.button("Xóa vị trí", key="btn_slot_del", use_container_width=True):
+                    if sb3.button("Xóa vị trí", key="btn_slot_del", width="stretch"):
                         try:
                             service.delete_slot(int(sel_s["id"]))
                             _invalidate_data_cache()
@@ -911,9 +950,9 @@ def _confirm_checkout_dialog(
         unsafe_allow_html=True,
     )
     c_cancel, c_ok = st.columns(2)
-    if c_cancel.button("Hủy", use_container_width=True):
+    if c_cancel.button("Hủy", width="stretch"):
         st.rerun()
-    if c_ok.button("Xác nhận thu tiền & Mở cổng", type="primary", use_container_width=True):
+    if c_ok.button("Xác nhận thu tiền & Mở cổng", type="primary", width="stretch"):
         try:
             done_quote = service.check_out_vehicle(
                 turn_id,
@@ -1254,10 +1293,10 @@ def _render_transactions_page(service: ParkingService) -> None:
     df = pd.DataFrame(rows)
     if tx_search:
         mask = (
-            df["bienso"].astype(str).str.lower().str.contains(tx_search, na=False)
-            | df["ma_gd"].astype(str).str.lower().str.contains(tx_search, na=False)
-            | df["nhanvien"].astype(str).str.lower().str.contains(tx_search, na=False)
-            | df["mathe"].astype(str).str.lower().str.contains(tx_search, na=False)
+            df["bienso"].astype(str).str.lower().str.contains(tx_search, na=False, regex=False)
+            | df["ma_gd"].astype(str).str.lower().str.contains(tx_search, na=False, regex=False)
+            | df["nhanvien"].astype(str).str.lower().str.contains(tx_search, na=False, regex=False)
+            | df["mathe"].astype(str).str.lower().str.contains(tx_search, na=False, regex=False)
         )
         df = df[mask]
 
@@ -1433,15 +1472,15 @@ def _render_passes_and_tariffs_page(service: ParkingService) -> None:
 
             pass_df = pd.DataFrame(passes)
             if pass_status_filter == "Còn hạn":
-                pass_df = pass_df[pass_df["trangthai"].astype(str).str.lower().str.contains("còn|hiệu lực|active", na=False)]
+                pass_df = pass_df[pass_df["trangthai"].astype(str).str.lower().str.contains("còn|hiệu lực|active", na=False, regex=False)]
             elif pass_status_filter == "Hết hạn":
-                pass_df = pass_df[pass_df["trangthai"].astype(str).str.lower().str.contains("hết|expired", na=False)]
+                pass_df = pass_df[pass_df["trangthai"].astype(str).str.lower().str.contains("hết|expired", na=False, regex=False)]
 
             if pass_kw:
                 mask = (
-                    pass_df["bienso"].astype(str).str.lower().str.contains(pass_kw, na=False)
-                    | pass_df["hoten"].astype(str).str.lower().str.contains(pass_kw, na=False)
-                    | pass_df["sdt"].astype(str).str.lower().str.contains(pass_kw, na=False)
+                    pass_df["bienso"].astype(str).str.lower().str.contains(pass_kw, na=False, regex=False)
+                    | pass_df["hoten"].astype(str).str.lower().str.contains(pass_kw, na=False, regex=False)
+                    | pass_df["sdt"].astype(str).str.lower().str.contains(pass_kw, na=False, regex=False)
                 )
                 pass_df = pass_df[mask]
 
@@ -1519,7 +1558,7 @@ def _render_passes_and_tariffs_page(service: ParkingService) -> None:
                     with col_rn:
                         st.caption("Gia hạn vé tháng")
                         ext_months = st.number_input("Số tháng gia hạn", min_value=1, max_value=24, value=1, key="pass_ext_months")
-                        if st.button("Gia hạn vé", type="primary", key="btn_renew_pass", use_container_width=True):
+                        if st.button("Gia hạn vé", type="primary", key="btn_renew_pass", width="stretch"):
                             try:
                                 res = service.renew_monthly_pass(int(sel_p["id"]), int(ext_months))
                                 _invalidate_data_cache()
@@ -1545,7 +1584,7 @@ def _render_passes_and_tariffs_page(service: ParkingService) -> None:
                         card_keys_p = list(card_opts_p.keys())
                         cur_c_idx = next((i for i, k in enumerate(card_keys_p) if k.startswith(f"{sel_p['mathe']} ")), 0)
                         new_p_card = st.selectbox("Thẻ xe", card_keys_p, index=cur_c_idx, key="pass_upd_card")
-                        if st.button("Lưu thay đổi xe/thẻ", key="btn_upd_pass_assets", use_container_width=True):
+                        if st.button("Lưu thay đổi xe/thẻ", key="btn_upd_pass_assets", width="stretch"):
                             try:
                                 service.update_monthly_pass_assets(
                                     pass_id=int(sel_p["id"]),
@@ -1562,7 +1601,7 @@ def _render_passes_and_tariffs_page(service: ParkingService) -> None:
                     with col_cn:
                         st.caption("Hủy vé trước hạn")
                         st.write("Đặt vé hết hiệu lực ngay và giải phóng thẻ xe nếu không đang gửi.")
-                        if st.button("Hủy vé tháng này", key="btn_cancel_pass", use_container_width=True):
+                        if st.button("Hủy vé tháng này", key="btn_cancel_pass", width="stretch"):
                             try:
                                 service.cancel_monthly_pass(int(sel_p["id"]))
                                 _invalidate_data_cache()
@@ -1814,11 +1853,11 @@ def _render_people_and_visitors_page(service: ParkingService) -> None:
                 emp_df = emp_df[emp_df["tenbaido"].astype(str) == selected_lot]
             if staff_kw:
                 mask = (
-                    emp_df["hoten"].astype(str).str.lower().str.contains(staff_kw, na=False)
-                    | emp_df["chucvu"].astype(str).str.lower().str.contains(staff_kw, na=False)
-                    | emp_df["sdt"].astype(str).str.lower().str.contains(staff_kw, na=False)
-                    | emp_df["cccd"].astype(str).str.lower().str.contains(staff_kw, na=False)
-                    | emp_df["email"].astype(str).str.lower().str.contains(staff_kw, na=False)
+                    emp_df["hoten"].astype(str).str.lower().str.contains(staff_kw, na=False, regex=False)
+                    | emp_df["chucvu"].astype(str).str.lower().str.contains(staff_kw, na=False, regex=False)
+                    | emp_df["sdt"].astype(str).str.lower().str.contains(staff_kw, na=False, regex=False)
+                    | emp_df["cccd"].astype(str).str.lower().str.contains(staff_kw, na=False, regex=False)
+                    | emp_df["email"].astype(str).str.lower().str.contains(staff_kw, na=False, regex=False)
                 )
                 emp_df = emp_df[mask]
 
@@ -1980,16 +2019,16 @@ def _render_people_and_visitors_page(service: ParkingService) -> None:
 
             cus_df = pd.DataFrame(customers)
             if role_filter == "Giảng viên":
-                cus_df = cus_df[cus_df["loaikhachhang"].astype(str).str.lower().str.contains("giảng", na=False)]
+                cus_df = cus_df[cus_df["loaikhachhang"].astype(str).str.lower().str.contains("giảng", na=False, regex=False)]
             elif role_filter == "Sinh viên":
-                cus_df = cus_df[cus_df["loaikhachhang"].astype(str).str.lower().str.contains("sinh", na=False)]
+                cus_df = cus_df[cus_df["loaikhachhang"].astype(str).str.lower().str.contains("sinh", na=False, regex=False)]
 
             if cus_kw:
                 mask = (
-                    cus_df["hoten"].astype(str).str.lower().str.contains(cus_kw, na=False)
-                    | cus_df["sdt"].astype(str).str.lower().str.contains(cus_kw, na=False)
-                    | cus_df["cccd"].astype(str).str.lower().str.contains(cus_kw, na=False)
-                    | cus_df["bien_so_dang_ky"].astype(str).str.lower().str.contains(cus_kw, na=False)
+                    cus_df["hoten"].astype(str).str.lower().str.contains(cus_kw, na=False, regex=False)
+                    | cus_df["sdt"].astype(str).str.lower().str.contains(cus_kw, na=False, regex=False)
+                    | cus_df["cccd"].astype(str).str.lower().str.contains(cus_kw, na=False, regex=False)
+                    | cus_df["bien_so_dang_ky"].astype(str).str.lower().str.contains(cus_kw, na=False, regex=False)
                 )
                 cus_df = cus_df[mask]
 
@@ -2146,9 +2185,9 @@ def _render_people_and_visitors_page(service: ParkingService) -> None:
                 w_df = w_df[w_df["trang_thai"] == walkin_status]
             if walkin_kw:
                 mask = (
-                    w_df["bienso"].astype(str).str.lower().str.contains(walkin_kw, na=False)
-                    | w_df["mathe"].astype(str).str.lower().str.contains(walkin_kw, na=False)
-                    | w_df["vitri_do"].astype(str).str.lower().str.contains(walkin_kw, na=False)
+                    w_df["bienso"].astype(str).str.lower().str.contains(walkin_kw, na=False, regex=False)
+                    | w_df["mathe"].astype(str).str.lower().str.contains(walkin_kw, na=False, regex=False)
+                    | w_df["vitri_do"].astype(str).str.lower().str.contains(walkin_kw, na=False, regex=False)
                 )
                 w_df = w_df[mask]
 
@@ -2370,7 +2409,7 @@ def _render_people_and_visitors_page(service: ParkingService) -> None:
                     sel_card_lbl = st.selectbox("Chọn thẻ xe xử lý", list(card_sel_map.keys()), key="manage_card_sel")
                     sel_card = card_sel_map[sel_card_lbl]
                     cb1, cb2, cb3 = st.columns(3)
-                    if cb1.button("Đánh dấu Mất/Hỏng", key="btn_card_lost", use_container_width=True):
+                    if cb1.button("Đánh dấu Mất/Hỏng", key="btn_card_lost", width="stretch"):
                         try:
                             service.set_card_status(int(sel_card["id"]), 2)
                             _invalidate_data_cache()
@@ -2378,7 +2417,7 @@ def _render_people_and_visitors_page(service: ParkingService) -> None:
                             st.rerun()
                         except (ValidationError, DatabaseError) as exc:
                             st.error(str(exc))
-                    if cb2.button("Mở khóa Sẵn sàng", key="btn_card_ok", use_container_width=True):
+                    if cb2.button("Mở khóa Sẵn sàng", key="btn_card_ok", width="stretch"):
                         try:
                             service.set_card_status(int(sel_card["id"]), 1)
                             _invalidate_data_cache()
@@ -2386,7 +2425,7 @@ def _render_people_and_visitors_page(service: ParkingService) -> None:
                             st.rerun()
                         except (ValidationError, DatabaseError) as exc:
                             st.error(str(exc))
-                    if cb3.button("Xóa thẻ", key="btn_card_del", use_container_width=True):
+                    if cb3.button("Xóa thẻ", key="btn_card_del", width="stretch"):
                         try:
                             service.delete_card(int(sel_card["id"]))
                             _invalidate_data_cache()
@@ -2414,8 +2453,8 @@ def _render_people_and_visitors_page(service: ParkingService) -> None:
                 v_df = v_df[v_df["loaiphuongtien"] == vtype_f]
             if veh_kw:
                 mask = (
-                    v_df["bienso"].astype(str).str.lower().str.contains(veh_kw, na=False)
-                    | v_df["chu_xe"].astype(str).str.lower().str.contains(veh_kw, na=False)
+                    v_df["bienso"].astype(str).str.lower().str.contains(veh_kw, na=False, regex=False)
+                    | v_df["chu_xe"].astype(str).str.lower().str.contains(veh_kw, na=False, regex=False)
                 )
                 v_df = v_df[mask]
 
@@ -2603,7 +2642,7 @@ def _render_analytics_page(service: ParkingService) -> None:
                 .configure_view(strokeWidth=0)
                 .configure_axis(labelColor="#475569", titleColor="#334155", labelFontSize=11, titleFontSize=12)
             )
-            st.altair_chart(chart, use_container_width=True)
+            st.altair_chart(chart, width="stretch")
         else:
             _render_empty_state("Chưa có dữ liệu doanh thu theo ngày", "Hãy chọn khoảng thời gian rộng hơn.", icon_name="chart")
 
@@ -2634,7 +2673,7 @@ def _render_analytics_page(service: ParkingService) -> None:
                 .configure_view(strokeWidth=0)
                 .configure_legend(labelColor="#334155", titleColor="#0F172A", labelFontSize=12)
             )
-            st.altair_chart(chart_vt, use_container_width=True)
+            st.altair_chart(chart_vt, width="stretch")
         else:
             _render_empty_state("Chưa có dữ liệu phân bổ", "Chưa có giao dịch theo loại phương tiện.", icon_name="chart")
 
@@ -2668,7 +2707,7 @@ def _render_analytics_page(service: ParkingService) -> None:
             .configure_view(strokeWidth=0)
             .configure_axis(labelColor="#475569", titleColor="#334155", labelFontSize=11, titleFontSize=12)
         )
-        st.altair_chart(flow_chart, use_container_width=True)
+        st.altair_chart(flow_chart, width="stretch")
 
     st.subheader("Doanh thu & Lưu lượng theo bãi đỗ")
     if lot_rev_rows:
@@ -2692,7 +2731,7 @@ def _render_analytics_page(service: ParkingService) -> None:
             .configure_view(strokeWidth=0)
             .configure_axis(labelColor="#475569", titleColor="#334155", labelFontSize=11, titleFontSize=12)
         )
-        st.altair_chart(lot_chart, use_container_width=True)
+        st.altair_chart(lot_chart, width="stretch")
         lot_rows_html = [
             [
                 _tbl_stack(r["tenbaido"], r["diadiem"]),
@@ -2746,20 +2785,26 @@ def main() -> None:
         st.error(str(exc))
         return
 
-    service = ParkingService(db)
+    base_service = ParkingService(db)
+    service: Any = base_service if _LEGACY_WRITES_ENABLED else _ReadOnlyParkingServiceProxy(base_service)
 
     with st.sidebar:
         st.markdown(
             f'<div class="status-pill status-pill--ok">{svg_icon("check", 15, 2.0)}<span>Đã kết nối TiDB (dbptit)</span></div>',
             unsafe_allow_html=True,
         )
+        if not _LEGACY_WRITES_ENABLED:
+            st.info(
+                "Chế độ chỉ đọc (Legacy Demo). Mọi thao tác ghi cần thực hiện trên giao diện React + FastAPI v2.1.",
+                icon="🔒",
+            )
         page = st.radio(
             "Điều hướng",
             list(NAV_ITEMS),
         )
         st.divider()
         st.caption("Quản trị dữ liệu")
-        if st.button("Làm mới dữ liệu", icon=":material/refresh:", use_container_width=True):
+        if st.button("Làm mới dữ liệu", icon=":material/refresh:", width="stretch"):
             _invalidate_data_cache()
             st.rerun()
 

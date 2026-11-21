@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 _ICON_PATHS: dict[str, str] = {
@@ -11,7 +12,7 @@ _ICON_PATHS: dict[str, str] = {
     "chart": '<path d="M3 3v18h18"/><path d="M7 14l4-4 4 3 5-6"/>',
     "check": '<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
     "alert": '<circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
-    "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    "clock": '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
     "search": '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
     "plus": '<path d="M12 5v14"/><path d="M5 12h14"/>',
     "refresh": '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
@@ -22,7 +23,6 @@ _ICON_PATHS: dict[str, str] = {
     "map_pin": '<path d="M12 21s-6-5.33-6-10a6 6 0 1 1 12 0c0 4.67-6 10-6 10z"/><circle cx="12" cy="11" r="2.5"/>',
     "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     "inbox": '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
-    "clock": '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
 }
 
 
@@ -44,8 +44,9 @@ def svg_icon(
     )
 
 
+@lru_cache(maxsize=8)
 def brand_logo_svg(size: int = 28) -> str:
-    """Load assets/logo.svg or fall back to an inline single-stroke brand mark."""
+    """Load and cache assets/logo.svg or fall back to an inline single-stroke brand mark."""
     logo_path = Path(__file__).resolve().parents[2] / "assets" / "logo.svg"
     if logo_path.exists():
         raw = logo_path.read_text(encoding="utf-8").strip()
