@@ -1,32 +1,24 @@
-# React + TypeScript + Vite
+# Smart Parking PTIT — React 19 + TypeScript SPA
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Giao diện vận hành bãi đỗ xe thông minh xây dựng bằng **React 19**, **TypeScript (`strict: true`)**, **Vite 8**, **Tailwind CSS v4**, **React Router**, **TanStack Query** và **Recharts**.
 
-Currently, two official plugins are available:
+## Chạy môi trường phát triển
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Đảm bảo backend FastAPI đang chạy tại `http://127.0.0.1:8000`, sau đó chạy:
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```powershell
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Vite dev server lắng nghe ở `http://localhost:5173` và tự động proxy `/api`, `/health`, `/ws` tới backend cổng `8000`.
+
+## Bộ lệnh kiểm tra & build
+
+```powershell
+npm run lint          # Oxlint (yêu cầu 0 lỗi, 0 cảnh báo)
+npm run typecheck     # TypeScript strict + noUncheckedIndexedAccess
+npm run test          # Vitest + React Testing Library
+npm run build         # Build production vào frontend/dist (FastAPI tự phục vụ SPA)
+npm run format        # Định dạng mã bằng Prettier
+```

@@ -1,27 +1,58 @@
-import { CalendarPlus, CreditCard, RefreshCw, Tag, Trash2 } from 'lucide-react';
-import { type FormEvent, useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CreditCard, Edit3, PlusCircle, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { useId, useMemo, useState } from 'react';
 import type { PrintableDocument } from '../components/TicketPrintModal';
-import { apiRequest, formatDate, formatVnd } from '../lib/api';
-import type { AuthUser, MonthlyPass, Tariff } from '../types';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Modal } from '../components/ui/Modal';
+import { PaginationBar } from '../components/ui/PaginationBar';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { useToast } from '../context/ToastContext';
+import { apiRequest, formatDate, formatVnd, getErrorMessage } from '../lib/api';
+import type {
+  AuthUser,
+  CardRecord,
+  CatalogsResponse,
+  MonthlyPass,
+  PaginatedResponse,
+  PaymentMethod,
+  Tariff,
+} from '../types';
+
+interface RegisterPassVars {
+  hoten: string;
+  sdt: string;
+  cccd: string;
+  customerTypeId: number;
+  plate: string;
+  vehicleTypeId: number;
+  cardId: number;
+  months: number;
+  payMethod: PaymentMethod;
+  estimatedAmount: number;
+  cardCode?: string;
+  vehicleTypeName?: string;
+}
+
+interface RenewPassVars {
+  pass: MonthlyPass;
+  renewM: number;
+  method: PaymentMethod;
+}
 
 interface PassesTariffsPageProps {
   user: AuthUser;
-  refreshSignal: number;
-  onNotify: (type: 'ok' | 'err', msg: string) => void;
   onPrint: (doc: PrintableDocument) => void;
 }
 
-export function PassesTariffsPage({
-  user,
-  refreshSignal,
-  onNotify,
-  onPrint,
-}: PassesTariffsPageProps) {
-  const [passes, setPasses] = useState<MonthlyPass[]>([]);
-  const [tariffs, setTariffs] = useState<Tariff[]>([]);
-  const [vehicleTypes, setVehicleTypes] = useState<Array<{ id: number; tenloai: string }>>([]);
-  const [customerTypes, setCustomerTypes] = useState<Array<{ id: number; tenloai: string }>>([]);
-  const [cards, setCards] = useState<Array<{ id: number; maso: string }>>([]);
+export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
+  const { notify } = useToast();
+  const queryClient = useQueryClient();
+  const formIdPrefix = useId();
+
+  // Filters & pagination
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'expired'>('');
+  const [keyword, setKeyword] = useState('');
 
   // Register pass form
   const [hoten, setHoten] = useState('');
@@ -32,393 +63,669 @@ export function PassesTariffsPage({
   const [vehTypeId, setVehTypeId] = useState<number | ''>('');
   const [cardId, setCardId] = useState<number | ''>('');
   const [months, setMonths] = useState(1);
-  const [payMethod, setPayMethod] = useState<'Tiền mặt' | 'Chuyển khoản'>('Tiền mặt');
+  const [payMethod, setPayMethod] = useState<PaymentMethod>('Tiền mặt');
 
-  async function loadAll() {
-    try {
-      const [p, t, cat, availCards] = await Promise.all([
-        apiRequest<MonthlyPass[]>('/api/passes'),
-        apiRequest<Tariff[]>('/api/tariffs'),
-        apiRequest<{
-          vehicle_types: Array<{ id: number; tenloai: string }>;
-          customer_types: Array<{ id: number; tenloai: string }>;
-        }>('/api/catalogs'),
-        apiRequest<Array<{ id: number; maso: string }>>('/api/cards?only_available=true'),
-      ]);
-      setPasses(p);
-      setTariffs(t);
-      setVehicleTypes(cat.vehicle_types);
-      setCustomerTypes(cat.customer_types);
-      setCards(availCards);
+  // Modals
+  const [renewTarget, setRenewTarget] = useState<MonthlyPass | null>(null);
+  const [renewMonths, setRenewMonths] = useState(1);
+  const [renewPayMethod, setRenewPayMethod] = useState<PaymentMethod>('Tiền mặt');
+  const [cancelTarget, setCancelTarget] = useState<MonthlyPass | null>(null);
+  const [editTariffTarget, setEditTariffTarget] = useState<Tariff | null>(null);
+  const [editTariffPrice, setEditTariffPrice] = useState(0);
 
-      if (!vehTypeId && cat.vehicle_types[0]) setVehTypeId(cat.vehicle_types[0].id);
-      if (!custTypeId && cat.customer_types[0]) setCustTypeId(cat.customer_types[0].id);
-      if (availCards[0] && (!cardId || !availCards.some((c) => c.id === cardId))) {
-        setCardId(availCards[0].id);
-      }
-    } catch (err: any) {
-      onNotify('err', err.message);
-    }
-  }
+  const passParams = useMemo(() => {
+    const p = new URLSearchParams({ page: String(page), page_size: '25' });
+    if (statusFilter) p.set('status_filter', statusFilter);
+    if (keyword.trim()) p.set('keyword', keyword.trim());
+    return p.toString();
+  }, [page, statusFilter, keyword]);
 
-  useEffect(() => {
-    loadAll();
-  }, [refreshSignal]);
+  const passesQuery = useQuery<PaginatedResponse<MonthlyPass>>({
+    queryKey: ['passes', passParams],
+    queryFn: ({ signal }) =>
+      apiRequest<PaginatedResponse<MonthlyPass>>(`/api/v1/passes?${passParams}`, { signal }),
+  });
 
-  const matchedTariff = tariffs.find(
-    (t) =>
-      t.loaive.toLowerCase() === 'tháng' &&
-      t.idlpt === Number(vehTypeId) &&
-      t.idlkh === Number(custTypeId),
-  );
-  const estimatedCost = (matchedTariff?.dongia || 0) * months;
+  const tariffsQuery = useQuery<Tariff[]>({
+    queryKey: ['tariffs'],
+    queryFn: ({ signal }) => apiRequest<Tariff[]>('/api/v1/tariffs', { signal }),
+  });
 
-  async function handleRegister(e: FormEvent) {
-    e.preventDefault();
-    try {
-      const res = await apiRequest<{ id: number }>('/api/passes', {
+  const catalogsQuery = useQuery<CatalogsResponse>({
+    queryKey: ['catalogs'],
+    queryFn: ({ signal }) => apiRequest<CatalogsResponse>('/api/v1/catalogs', { signal }),
+    staleTime: 60_000,
+  });
+
+  const cardsQuery = useQuery<CardRecord[]>({
+    queryKey: ['cards', 'available'],
+    queryFn: ({ signal }) =>
+      apiRequest<CardRecord[]>('/api/v1/cards?only_available=true', { signal }),
+  });
+
+  const catalogs = catalogsQuery.data;
+  const tariffs = useMemo(() => tariffsQuery.data ?? [], [tariffsQuery.data]);
+  const cards = useMemo(() => cardsQuery.data ?? [], [cardsQuery.data]);
+
+  const effectiveVehTypeId = vehTypeId || catalogs?.vehicle_types[0]?.id || '';
+  const effectiveCustTypeId = custTypeId || catalogs?.customer_types[0]?.id || '';
+  const effectiveCardId =
+    cardId && cards.some((c) => c.id === cardId) ? cardId : (cards[0]?.id ?? '');
+
+  const estimatedUnitPrice = useMemo(() => {
+    const match = tariffs.find(
+      (t) =>
+        t.loaive === 'tháng' &&
+        t.idlpt === Number(effectiveVehTypeId) &&
+        t.idlkh === Number(effectiveCustTypeId),
+    );
+    return match ? match.dongia : 0;
+  }, [tariffs, effectiveVehTypeId, effectiveCustTypeId]);
+
+  const invalidatePassData = () => {
+    void queryClient.invalidateQueries({ queryKey: ['passes'] });
+    void queryClient.invalidateQueries({ queryKey: ['cards'] });
+    void queryClient.invalidateQueries({ queryKey: ['overview'] });
+    void queryClient.invalidateQueries({ queryKey: ['transactions'] });
+  };
+
+  const registerMutation = useMutation({
+    mutationFn: (vars: RegisterPassVars) =>
+      apiRequest<{ id: number }>('/api/v1/passes', {
         method: 'POST',
         body: JSON.stringify({
-          hoten,
-          sdt,
-          cccd,
-          customer_type_id: Number(custTypeId),
-          license_plate: plate.toUpperCase(),
-          vehicle_type_id: Number(vehTypeId),
-          card_id: Number(cardId),
-          months,
-          payment_method: payMethod,
+          hoten: vars.hoten,
+          sdt: vars.sdt,
+          cccd: vars.cccd,
+          customer_type_id: vars.customerTypeId,
+          license_plate: vars.plate,
+          vehicle_type_id: vars.vehicleTypeId,
+          card_id: vars.cardId,
+          months: vars.months,
+          payment_method: vars.payMethod,
         }),
-      });
-      onNotify('ok', `Đã đăng ký vé tháng #${res.id} và ghi nhận thanh toán.`);
+      }),
+    onSuccess: (res, vars) => {
+      notify('ok', `Đăng ký vé tháng #${res.id} thành công!`);
       onPrint({
         kind: 'receipt',
-        id: res.id,
-        plate: plate.toUpperCase(),
-        ticketType: `Vé tháng (${months} tháng)`,
+        id: `VT-${res.id}`,
+        plate: vars.plate,
+        vehicleType: vars.vehicleTypeName,
+        cardCode: vars.cardCode,
+        ticketType: `Đăng ký vé tháng (${vars.months} tháng)`,
         checkoutTime: new Date().toISOString(),
-        paymentMethod: payMethod,
-        amount: estimatedCost,
+        paymentMethod: vars.payMethod,
+        amount: vars.estimatedAmount,
         operatorName: user.full_name,
       });
       setHoten('');
       setSdt('');
       setCccd('');
       setPlate('');
-      await loadAll();
-    } catch (err: any) {
-      onNotify('err', err.message);
-    }
-  }
+      setCardId('');
+      invalidatePassData();
+    },
+    onError: (err: unknown) => notify('err', getErrorMessage(err)),
+  });
 
-  async function handleRenew(p: MonthlyPass, addMonths: number) {
-    try {
-      const res = await apiRequest<{ amount: number; new_end_date: string }>(
-        `/api/passes/${p.id}/renew`,
+  const renewMutation = useMutation({
+    mutationFn: (vars: RenewPassVars) =>
+      apiRequest<{ pass_id: number; new_end_date: string; amount: number }>(
+        `/api/v1/passes/${vars.pass.id}/renew`,
         {
           method: 'POST',
-          body: JSON.stringify({ months: addMonths, payment_method: 'Tiền mặt' }),
+          body: JSON.stringify({ months: vars.renewM, payment_method: vars.method }),
         },
-      );
-      onNotify('ok', `Đã gia hạn vé #${p.id} thêm ${addMonths} tháng.`);
+      ),
+    onSuccess: (res, vars) => {
+      notify('ok', `Gia hạn vé #${res.pass_id} đến ${formatDate(res.new_end_date)}.`);
       onPrint({
         kind: 'receipt',
-        id: p.id,
-        plate: p.bienso,
-        cardCode: p.mathe,
-        ticketType: `Gia hạn vé tháng (+${addMonths} tháng)`,
+        id: `GH-${res.pass_id}`,
+        plate: vars.pass.bienso,
+        vehicleType: vars.pass.loaiphuongtien,
+        cardCode: vars.pass.mathe,
+        ticketType: `Gia hạn vé tháng (+${vars.renewM} tháng)`,
         checkoutTime: new Date().toISOString(),
-        paymentMethod: 'Tiền mặt',
+        paymentMethod: vars.method,
         amount: res.amount,
         operatorName: user.full_name,
       });
-      await loadAll();
-    } catch (err: any) {
-      onNotify('err', err.message);
-    }
-  }
+      setRenewTarget(null);
+      invalidatePassData();
+    },
+    onError: (err: unknown) => notify('err', getErrorMessage(err)),
+  });
 
-  async function handleCancelPass(p: MonthlyPass) {
-    if (!window.confirm(`Hủy vé tháng #${p.id} (${p.bienso})?`)) return;
-    try {
-      await apiRequest(`/api/passes/${p.id}`, { method: 'DELETE' });
-      onNotify('ok', `Đã hủy vé tháng #${p.id}.`);
-      await loadAll();
-    } catch (err: any) {
-      onNotify('err', err.message);
-    }
-  }
+  const cancelPassMutation = useMutation({
+    mutationFn: (passId: number) =>
+      apiRequest(`/api/v1/passes/${passId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      notify('ok', 'Đã hủy hiệu lực vé tháng.');
+      setCancelTarget(null);
+      invalidatePassData();
+    },
+    onError: (err: unknown) => notify('err', getErrorMessage(err)),
+  });
 
-  async function handleUpdateTariffPrice(t: Tariff) {
-    const raw = window.prompt(`Nhập đơn giá mới (VNĐ) cho ${t.loaive} · ${t.loaiphuongtien} (${t.loaikhachhang}):`, String(t.dongia));
-    if (raw === null) return;
-    const price = Number(raw);
-    if (Number.isNaN(price) || price < 0) return;
-    try {
-      await apiRequest(`/api/tariffs/${t.id}`, {
+  const updateTariffMutation = useMutation({
+    mutationFn: ({ id, price }: { id: number; price: number }) =>
+      apiRequest(`/api/v1/tariffs/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ unit_price: price }),
-      });
-      onNotify('ok', 'Đã cập nhật bảng giá.');
-      await loadAll();
-    } catch (err: any) {
-      onNotify('err', err.message);
-    }
-  }
+      }),
+    onSuccess: () => {
+      notify('ok', 'Đã cập nhật đơn giá.');
+      setEditTariffTarget(null);
+      void queryClient.invalidateQueries({ queryKey: ['tariffs'] });
+    },
+    onError: (err: unknown) => notify('err', getErrorMessage(err)),
+  });
 
   const canManage = user.role === 'ADMIN' || user.role === 'ACCOUNTANT';
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-          Vé tháng &amp; Bảng giá Dịch vụ
-        </h1>
-        <p className="text-sm text-slate-500">
-          Đăng ký, gia hạn vé tháng tự động hạch toán vào giao dịch thu phí và quản lý biểu giá.
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* Register Form */}
-        <div className="xl:col-span-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-          <div className="flex items-center gap-2.5 mb-5">
-            <div className="rounded-xl bg-indigo-50 p-2 text-indigo-600">
-              <CalendarPlus className="h-5 w-5" />
-            </div>
-            <h2 className="font-bold text-slate-900">Đăng ký vé tháng mới</h2>
-          </div>
-
-          <form onSubmit={handleRegister} className="space-y-3.5">
-            <input
-              type="text"
-              required
-              placeholder="Họ tên khách hàng"
-              value={hoten}
-              onChange={(e) => setHoten(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm"
-            />
-            <div className="grid grid-cols-2 gap-2.5">
+        {/* Register Monthly Pass Form */}
+        <section className="xl:col-span-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+            <PlusCircle className="h-4 w-4 text-indigo-600" />
+            Đăng ký vé tháng mới
+          </h2>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const cId = Number(effectiveCardId);
+              const vId = Number(effectiveVehTypeId);
+              const custId = Number(effectiveCustTypeId);
+              registerMutation.mutate({
+                hoten,
+                sdt,
+                cccd,
+                customerTypeId: custId,
+                plate: plate.trim().toUpperCase(),
+                vehicleTypeId: vId,
+                cardId: cId,
+                months,
+                payMethod,
+                estimatedAmount: estimatedUnitPrice * months,
+                cardCode: cards.find((c) => c.id === cId)?.maso,
+                vehicleTypeName: catalogs?.vehicle_types.find((v) => v.id === vId)?.tenloai,
+              });
+            }}
+            className="space-y-3 text-xs"
+          >
+            <div>
+              <label htmlFor={`${formIdPrefix}-name`} className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                Họ tên khách hàng
+              </label>
               <input
-                type="text"
+                id={`${formIdPrefix}-name`}
                 required
-                placeholder="Số điện thoại"
-                value={sdt}
-                onChange={(e) => setSdt(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm"
-              />
-              <input
-                type="text"
-                required
-                placeholder="CCCD / CMND"
-                value={cccd}
-                onChange={(e) => setCccd(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm"
+                maxLength={60}
+                value={hoten}
+                onChange={(e) => setHoten(e.target.value)}
+                placeholder="Nguyễn Văn A"
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
               />
             </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              <select
-                value={custTypeId}
-                onChange={(e) => setCustTypeId(Number(e.target.value))}
-                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              >
-                {customerTypes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.tenloai}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={vehTypeId}
-                onChange={(e) => setVehTypeId(Number(e.target.value))}
-                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              >
-                {vehicleTypes.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.tenloai}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <input
-              type="text"
-              required
-              placeholder="Biển số xe (VD: 29A-123.45)"
-              value={plate}
-              onChange={(e) => setPlate(e.target.value.toUpperCase())}
-              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 font-mono-plate text-sm font-bold uppercase"
-            />
-            <div className="grid grid-cols-2 gap-2.5">
-              <select
-                value={cardId}
-                onChange={(e) => setCardId(Number(e.target.value))}
-                className="rounded-xl border border-slate-200 px-3 py-2 font-mono-plate text-sm"
-              >
-                {cards.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    Thẻ {c.maso}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={months}
-                onChange={(e) => setMonths(Number(e.target.value))}
-                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              >
-                {[1, 2, 3, 6, 12].map((m) => (
-                  <option key={m} value={m}>
-                    {m} tháng
-                  </option>
-                ))}
-              </select>
-            </div>
-            <select
-              value={payMethod}
-              onChange={(e) => setPayMethod(e.target.value as 'Tiền mặt' | 'Chuyển khoản')}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            >
-              <option value="Tiền mặt">Thu tiền mặt</option>
-              <option value="Chuyển khoản">Chuyển khoản / VietQR</option>
-            </select>
 
-            <div className="rounded-xl bg-indigo-50/70 border border-indigo-100 p-3.5 flex items-center justify-between">
-              <span className="text-xs font-semibold text-indigo-900">Thành tiền dự kiến:</span>
-              <span className="text-lg font-extrabold text-indigo-700">
-                {formatVnd(estimatedCost)}
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label htmlFor={`${formIdPrefix}-sdt`} className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Số điện thoại
+                </label>
+                <input
+                  id={`${formIdPrefix}-sdt`}
+                  required
+                  minLength={8}
+                  maxLength={20}
+                  value={sdt}
+                  onChange={(e) => setSdt(e.target.value)}
+                  placeholder="0912345678"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 focus:border-indigo-500 outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor={`${formIdPrefix}-cccd`} className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Số CCCD
+                </label>
+                <input
+                  id={`${formIdPrefix}-cccd`}
+                  required
+                  minLength={9}
+                  maxLength={15}
+                  value={cccd}
+                  onChange={(e) => setCccd(e.target.value)}
+                  placeholder="001204000123"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 focus:border-indigo-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label htmlFor={`${formIdPrefix}-cust`} className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Đối tượng
+                </label>
+                <select
+                  id={`${formIdPrefix}-cust`}
+                  value={effectiveCustTypeId}
+                  onChange={(e) => setCustTypeId(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                >
+                  {(catalogs?.customer_types ?? []).map((ct) => (
+                    <option key={ct.id} value={ct.id}>{ct.tenloai}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor={`${formIdPrefix}-veh`} className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Loại xe
+                </label>
+                <select
+                  id={`${formIdPrefix}-veh`}
+                  value={effectiveVehTypeId}
+                  onChange={(e) => setVehTypeId(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                >
+                  {(catalogs?.vehicle_types ?? []).map((vt) => (
+                    <option key={vt.id} value={vt.id}>{vt.tenloai}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label htmlFor={`${formIdPrefix}-plate`} className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Biển số xe
+                </label>
+                <input
+                  id={`${formIdPrefix}-plate`}
+                  required
+                  maxLength={15}
+                  value={plate}
+                  onChange={(e) => setPlate(e.target.value.toUpperCase())}
+                  placeholder="29A-123.45"
+                  className="font-mono-plate w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 font-bold uppercase"
+                />
+              </div>
+              <div>
+                <label htmlFor={`${formIdPrefix}-card`} className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Thẻ RFID trống ({cards.length})
+                </label>
+                <select
+                  id={`${formIdPrefix}-card`}
+                  value={effectiveCardId}
+                  onChange={(e) => setCardId(Number(e.target.value))}
+                  className="font-mono-plate w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                >
+                  {cards.length === 0 ? (
+                    <option value="">Hết thẻ trống</option>
+                  ) : (
+                    cards.map((c) => (
+                      <option key={c.id} value={c.id}>#{c.maso}</option>
+                    ))
+                  )}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label htmlFor={`${formIdPrefix}-months`} className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Số tháng (1–12)
+                </label>
+                <input
+                  id={`${formIdPrefix}-months`}
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={months}
+                  onChange={(e) => setMonths(Math.max(1, Math.min(12, Number(e.target.value))))}
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label htmlFor={`${formIdPrefix}-pay`} className="block font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                  Thanh toán
+                </label>
+                <select
+                  id={`${formIdPrefix}-pay`}
+                  value={payMethod}
+                  onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+                >
+                  <option value="Tiền mặt">Tiền mặt</option>
+                  <option value="Chuyển khoản">Chuyển khoản</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900 px-3.5 py-2.5">
+              <span className="font-semibold text-indigo-700 dark:text-indigo-300">Ước tính thu:</span>
+              <span className="text-base font-extrabold text-indigo-800 dark:text-indigo-200">
+                {formatVnd(estimatedUnitPrice * months)}
               </span>
             </div>
 
             <button
               type="submit"
-              disabled={!cardId}
-              className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+              disabled={registerMutation.isPending || !effectiveCardId}
+              className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
             >
-              Đăng ký &amp; Thu tiền
+              {registerMutation.isPending ? 'Đang đăng ký...' : 'Đăng ký vé tháng & In biên lai'}
             </button>
           </form>
-        </div>
+        </section>
 
-        {/* Passes List & Tariffs */}
-        <div className="xl:col-span-8 space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-            <div className="border-b border-slate-200 px-5 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 font-bold text-slate-900">
-                <CreditCard className="h-4 w-4 text-indigo-600" />
-                <span>Danh sách vé tháng ({passes.length})</span>
+        {/* Passes List */}
+        <section className="xl:col-span-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 px-5 py-4">
+            <h2 className="flex items-center gap-2 text-sm font-bold">
+              <CreditCard className="h-4 w-4 text-indigo-600" />
+              Danh sách vé tháng ({passesQuery.data?.total ?? 0})
+            </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  aria-label="Tìm vé tháng theo tên, biển số hoặc thẻ"
+                  value={keyword}
+                  onChange={(e) => {
+                    setKeyword(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Tìm tên, biển số, thẻ..."
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-8 pr-3 py-1.5 text-xs outline-none"
+                />
               </div>
+              <select
+                aria-label="Lọc trạng thái vé tháng"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value as '' | 'active' | 'expired');
+                  setPage(1);
+                }}
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs"
+              >
+                <option value="">Tất cả trạng thái</option>
+                <option value="active">Còn hạn</option>
+                <option value="expired">Hết hạn</option>
+              </select>
             </div>
-            <div className="overflow-x-auto max-h-[380px]">
-              <table className="w-full text-left text-sm">
-                <thead className="sticky top-0 bg-slate-50 text-[11px] font-semibold uppercase text-slate-500 border-b border-slate-200">
+          </div>
+
+          <div className="overflow-x-auto">
+            {passesQuery.isLoading ? (
+              <div className="p-10 text-center text-sm text-slate-400">Đang tải danh sách vé tháng...</div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-800/70 text-[11px] font-semibold uppercase text-slate-500 border-b border-slate-200 dark:border-slate-800">
                   <tr>
                     <th className="px-4 py-3">Khách hàng</th>
-                    <th className="px-4 py-3">Biển số &amp; Thẻ</th>
+                    <th className="px-4 py-3">Biển số / Thẻ</th>
                     <th className="px-4 py-3">Hiệu lực</th>
                     <th className="px-4 py-3">Trạng thái</th>
                     <th className="px-4 py-3 text-right">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {passes.map((p) => {
-                    const isValid = p.trangthai === 'Còn hạn';
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {(passesQuery.data?.items ?? []).map((p) => {
+                    const isActive =
+                      p.status_code ? p.status_code === 'active' : p.trangthai === 'Còn hạn';
                     return (
-                    <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-slate-900">{p.hoten}</div>
-                        <div className="text-xs text-slate-500">
-                          {p.loaikhachhang} · {p.sdt}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-mono-plate font-bold text-slate-900">{p.bienso}</div>
-                        <div className="text-xs text-slate-500">
-                          {p.loaiphuongtien} · Thẻ {p.mathe}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-slate-600">
-                        <div>Từ: {formatDate(p.ngaybatdau)}</div>
-                        <div>Đến: {formatDate(p.ngayketthuc)}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            isValid
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : 'bg-rose-50 text-rose-700'
-                          }`}
-                        >
-                          {p.trangthai}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="inline-flex items-center gap-1.5">
-                          <button
-                            onClick={() => handleRenew(p, 1)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                            +1 tháng
-                          </button>
-                          {canManage && (
-                            <button
-                              onClick={() => handleCancelPass(p)}
-                              className="rounded-lg border border-rose-200 p-1.5 text-rose-600 hover:bg-rose-50"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );})}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-            <div className="border-b border-slate-200 px-5 py-4 flex items-center gap-2 font-bold text-slate-900">
-              <Tag className="h-4 w-4 text-amber-600" />
-              <span>Bảng giá áp dụng</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-[11px] font-semibold uppercase text-slate-500 border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3">Loại vé</th>
-                    <th className="px-4 py-3">Phương tiện</th>
-                    <th className="px-4 py-3">Đối tượng</th>
-                    <th className="px-4 py-3 text-right">Đơn giá</th>
-                    {canManage && <th className="px-4 py-3 text-right">Sửa</th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {tariffs.map((t) => (
-                    <tr key={t.id}>
-                      <td className="px-4 py-2.5 font-medium capitalize">{t.loaive}</td>
-                      <td className="px-4 py-2.5">{t.loaiphuongtien}</td>
-                      <td className="px-4 py-2.5 text-slate-600">{t.loaikhachhang}</td>
-                      <td className="px-4 py-2.5 text-right font-bold text-slate-900">
-                        {formatVnd(t.dongia)}
-                      </td>
-                      {canManage && (
-                        <td className="px-4 py-2.5 text-right">
-                          <button
-                            onClick={() => handleUpdateTariffPrice(t)}
-                            className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                          >
-                            Đổi giá
-                          </button>
+                      <tr key={p.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100">{p.hoten}</div>
+                          <div className="text-[11px] text-slate-500">
+                            {p.loaikhachhang} · {p.sdt}
+                          </div>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td className="px-4 py-3">
+                          <div className="font-mono-plate font-bold">{p.bienso}</div>
+                          <div className="text-[11px] text-slate-500">
+                            {p.loaiphuongtien} · Thẻ #{p.mathe}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div>{formatDate(p.ngaybatdau)} → {formatDate(p.ngayketthuc)}</div>
+                          <div className="text-[11px] text-slate-500">{formatVnd(p.dongia)}/tháng</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge tone={isActive ? 'emerald' : 'slate'}>
+                            {isActive ? 'Còn hạn' : 'Hết hạn'}
+                          </StatusBadge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRenewTarget(p);
+                                setRenewMonths(1);
+                                setRenewPayMethod('Tiền mặt');
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1.5 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              Gia hạn
+                            </button>
+                            {canManage && isActive && (
+                              <button
+                                type="button"
+                                aria-label={`Hủy vé tháng #${p.id}`}
+                                onClick={() => setCancelTarget(p)}
+                                className="rounded-lg border border-rose-200 dark:border-rose-900 p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+            )}
+          </div>
+          {passesQuery.data && (
+            <PaginationBar
+              page={passesQuery.data.page}
+              totalPages={passesQuery.data.total_pages}
+              total={passesQuery.data.total}
+              pageSize={passesQuery.data.page_size}
+              onPageChange={setPage}
+            />
+          )}
+        </section>
+      </div>
+
+      {/* Tariffs table */}
+      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
+        <div className="border-b border-slate-200 dark:border-slate-800 px-5 py-4">
+          <h2 className="text-sm font-bold">Bảng giá dịch vụ gửi xe ({tariffs.length} mức giá)</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 dark:bg-slate-800/70 text-[11px] font-semibold uppercase text-slate-500 border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th className="px-4 py-3">ID</th>
+                <th className="px-4 py-3">Loại vé</th>
+                <th className="px-4 py-3">Loại phương tiện</th>
+                <th className="px-4 py-3">Đối tượng khách hàng</th>
+                <th className="px-4 py-3 text-right">Đơn giá</th>
+                {canManage && <th className="px-4 py-3 text-right">Điều chỉnh</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {tariffs.map((t) => (
+                <tr key={t.id}>
+                  <td className="px-4 py-3 font-mono-plate">#{t.id}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge tone={t.loaive === 'tháng' ? 'indigo' : 'amber'}>
+                      Vé {t.loaive}
+                    </StatusBadge>
+                  </td>
+                  <td className="px-4 py-3 capitalize font-medium">{t.loaiphuongtien}</td>
+                  <td className="px-4 py-3">{t.loaikhachhang}</td>
+                  <td className="px-4 py-3 text-right font-bold">{formatVnd(t.dongia)}</td>
+                  {canManage && (
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditTariffTarget(t);
+                          setEditTariffPrice(t.dongia);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-[11px] font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                        Sửa giá
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Renew Modal */}
+      <Modal
+        open={Boolean(renewTarget)}
+        onClose={() => setRenewTarget(null)}
+        maxWidthClass="max-w-md"
+        title={renewTarget ? `Gia hạn vé tháng #${renewTarget.id} (${renewTarget.bienso})` : ''}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setRenewTarget(null)}
+              className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              disabled={renewMutation.isPending}
+              onClick={() =>
+                renewTarget &&
+                renewMutation.mutate({
+                  pass: renewTarget,
+                  renewM: renewMonths,
+                  method: renewPayMethod,
+                })
+              }
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {renewMutation.isPending ? 'Đang gia hạn...' : 'Xác nhận gia hạn'}
+            </button>
+          </>
+        }
+      >
+        {renewTarget && (
+          <div className="p-5 space-y-3 text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Hạn hiện tại:</span>
+              <strong>{formatDate(renewTarget.ngayketthuc)}</strong>
+            </div>
+            <div>
+              <label className="block font-semibold mb-1">Số tháng gia hạn</label>
+              <select
+                value={renewMonths}
+                onChange={(e) => setRenewMonths(Number(e.target.value))}
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+              >
+                {[1, 2, 3, 6, 12].map((n) => (
+                  <option key={n} value={n}>{n} tháng ({formatVnd(renewTarget.dongia * n)})</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block font-semibold mb-1">Phương thức thanh toán</label>
+              <select
+                value={renewPayMethod}
+                onChange={(e) => setRenewPayMethod(e.target.value as PaymentMethod)}
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
+              >
+                <option value="Tiền mặt">Tiền mặt</option>
+                <option value="Chuyển khoản">Chuyển khoản</option>
+              </select>
             </div>
           </div>
-        </div>
-      </div>
+        )}
+      </Modal>
+
+      {/* Edit Tariff Modal */}
+      <Modal
+        open={Boolean(editTariffTarget)}
+        onClose={() => setEditTariffTarget(null)}
+        maxWidthClass="max-w-sm"
+        title={editTariffTarget ? `Cập nhật đơn giá #${editTariffTarget.id}` : ''}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setEditTariffTarget(null)}
+              className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              disabled={updateTariffMutation.isPending}
+              onClick={() =>
+                editTariffTarget &&
+                updateTariffMutation.mutate({ id: editTariffTarget.id, price: editTariffPrice })
+              }
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {updateTariffMutation.isPending ? 'Đang lưu...' : 'Lưu đơn giá'}
+            </button>
+          </>
+        }
+      >
+        {editTariffTarget && (
+          <div className="p-5 space-y-3 text-xs">
+            <div className="text-slate-600 dark:text-slate-300">
+              Vé <strong>{editTariffTarget.loaive}</strong> — {editTariffTarget.loaiphuongtien} (
+              {editTariffTarget.loaikhachhang})
+            </div>
+            <div>
+              <label className="block font-semibold mb-1">Đơn giá mới (VNĐ)</label>
+              <input
+                type="number"
+                min={0}
+                step={1000}
+                value={editTariffPrice}
+                onChange={(e) => setEditTariffPrice(Math.max(0, Number(e.target.value)))}
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-bold"
+              />
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(cancelTarget)}
+        title="Hủy vé tháng trước hạn"
+        message={
+          cancelTarget
+            ? `Xác nhận hủy vé tháng #${cancelTarget.id} của khách ${cancelTarget.hoten} (${cancelTarget.bienso})?`
+            : ''
+        }
+        confirmLabel="Hủy vé tháng"
+        loading={cancelPassMutation.isPending}
+        onConfirm={() => cancelTarget && cancelPassMutation.mutate(cancelTarget.id)}
+        onCancel={() => setCancelTarget(null)}
+      />
     </div>
   );
 }

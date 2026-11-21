@@ -1,157 +1,156 @@
 import { CarFront, Lock, ShieldCheck, User } from 'lucide-react';
-import { type FormEvent, useState } from 'react';
-import { apiRequest, setAuthSession } from '../lib/api';
-import type { AuthUser } from '../types';
+import { useId, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { getErrorMessage } from '../lib/api';
 
-interface LoginPageProps {
-  onSuccess: (user: AuthUser) => void;
-}
+const IS_DEV = import.meta.env.DEV;
 
-export function LoginPage({ onSuccess }: LoginPageProps) {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('123456');
+export function LoginPage() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const userId = useId();
+  const passId = useId();
+
+  const [username, setUsername] = useState(IS_DEV ? 'admin' : '');
+  const [password, setPassword] = useState(IS_DEV ? '123456' : '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  async function handleSubmit(e: FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const res = await apiRequest<{ access_token: string; user: AuthUser }>('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ username, password }),
-      });
-      setAuthSession(res.access_token, res.user);
-      onSuccess(res.user);
-    } catch (err: any) {
-      setError(err.message || 'Đăng nhập thất bại.');
+      await login(username, password);
+      navigate('/gate', { replace: true });
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Đăng nhập thất bại.'));
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-slate-50">
-      <div className="hidden lg:flex flex-col justify-between bg-slate-900 p-12 text-white relative overflow-hidden">
-        <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
-        <div className="absolute -left-24 -bottom-24 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
-
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 shadow-lg shadow-indigo-600/30">
-            <CarFront className="h-6 w-6 text-white" />
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-4">
+      <div className="w-full max-w-4xl grid md:grid-cols-2 rounded-3xl bg-white dark:bg-slate-900 shadow-2xl overflow-hidden border border-slate-200/20">
+        <div className="hidden md:flex flex-col justify-between bg-gradient-to-br from-indigo-600 to-blue-700 p-10 text-white">
           <div>
-            <div className="text-lg font-bold tracking-tight">Smart Parking PTIT</div>
-            <div className="text-xs text-slate-400">Hệ thống Điều hành Bãi đỗ xe Thông minh</div>
+            <div className="inline-flex items-center gap-2.5 rounded-2xl bg-white/15 px-3.5 py-2 backdrop-blur-xs">
+              <CarFront className="h-5 w-5" />
+              <span className="text-sm font-bold tracking-wide">SMART PARKING PTIT</span>
+            </div>
+            <h1 className="mt-8 text-3xl font-extrabold leading-tight">
+              Hệ thống Vận hành Bãi đỗ xe Thông minh
+            </h1>
+            <p className="mt-4 text-sm text-indigo-100 leading-relaxed">
+              Kiểm soát cổng vào/ra theo thời gian thực, thanh toán VietQR chuẩn EMVCo, đối soát ca
+              trực thu ngân, phân quyền RBAC và nhật ký kiểm toán trên TiDB Cloud.
+            </p>
+          </div>
+
+          <div className="space-y-2.5 text-xs text-indigo-100/90">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-300" />
+              <span>Phân quyền ADMIN / ACCOUNTANT / OPERATOR kèm Refresh Token</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-300" />
+              <span>Đồng bộ trạng thái ô đỗ tức thời qua WebSocket bảo mật</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-300" />
+              <span>In phiếu gửi xe & biên lai nhiệt 80mm kèm mã QR</span>
+            </div>
           </div>
         </div>
 
-        <div className="relative z-10 space-y-6 max-w-md">
-          <h1 className="text-4xl font-extrabold leading-tight tracking-tight">
-            Vận hành làn xe nhanh chóng, đối soát minh bạch từng giao dịch.
-          </h1>
-          <p className="text-slate-300 text-sm leading-relaxed">
-            Kiến trúc FastAPI + WebSocket đồng bộ sơ đồ ô đỗ theo thời gian thực, hỗ trợ phân quyền
-            nhân sự, chốt ca thu ngân, nhật ký audit và in phiếu QR trực tiếp qua trình duyệt.
+        <div className="p-8 md:p-10 flex flex-col justify-center">
+          <div className="md:hidden flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold mb-6">
+            <CarFront className="h-6 w-6" />
+            <span>SMART PARKING PTIT</span>
+          </div>
+
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            Đăng nhập hệ thống
+          </h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Sử dụng tài khoản nhân viên được cấp để vận hành bãi xe.
           </p>
-          <div className="grid grid-cols-2 gap-4 pt-2">
-            <div className="rounded-xl border border-slate-800 bg-slate-800/40 p-4">
-              <div className="text-xs text-slate-400">Đồng bộ</div>
-              <div className="mt-1 text-base font-bold text-emerald-400">Real-time WebSocket</div>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-800/40 p-4">
-              <div className="text-xs text-slate-400">Bảo mật</div>
-              <div className="mt-1 text-base font-bold text-indigo-400">RBAC &amp; Audit Trail</div>
-            </div>
-          </div>
-        </div>
 
-        <div className="relative z-10 text-xs text-slate-500">
-          Nhóm 10 — Học viện Công nghệ Bưu chính Viễn thông (PTIT)
-        </div>
-      </div>
-
-      <div className="flex items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-md space-y-6">
-          <div className="lg:hidden flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600">
-              <CarFront className="h-5 w-5 text-white" />
+          {error && (
+            <div
+              role="alert"
+              className="mt-4 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/60 px-4 py-3 text-sm text-rose-700 dark:text-rose-300"
+            >
+              {error}
             </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>
-              <div className="font-bold text-slate-900">Smart Parking PTIT</div>
-              <div className="text-xs text-slate-500">Hệ thống quản lý bãi đỗ xe</div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Đăng nhập hệ thống</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Sử dụng tài khoản nhân sự được cấp để vận hành hoặc quản trị.
-              </p>
-            </div>
-
-            {error && (
-              <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Tên đăng nhập
-                </label>
-                <div className="relative">
-                  <User className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="admin"
-                    required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Mật khẩu
-                </label>
-                <div className="relative">
-                  <Lock className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••"
-                    required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 transition shadow-sm"
+              <label
+                htmlFor={userId}
+                className="block text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300 mb-1.5"
               >
-                {loading ? 'Đang xác thực...' : 'Đăng nhập'}
-              </button>
-            </form>
+                Tên đăng nhập
+              </label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  id={userId}
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  autoComplete="username"
+                  placeholder="Ví dụ: admin, thungan, baove"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                />
+              </div>
+            </div>
 
-            <div className="mt-6 pt-5 border-t border-slate-100">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 mb-2.5">
-                <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
-                <span>Chọn nhanh vai trò (mật khẩu mặc định: 123456)</span>
+            <div>
+              <label
+                htmlFor={passId}
+                className="block text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300 mb-1.5"
+              >
+                Mật khẩu
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  id={passId}
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 shadow-sm transition cursor-pointer"
+            >
+              {loading ? 'Đang xác thực...' : 'Đăng nhập vào quầy vận hành'}
+            </button>
+          </form>
+
+          {IS_DEV && (
+            <div className="mt-6 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 p-3.5 text-xs text-slate-600 dark:text-slate-300">
+              <div className="font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+                Tài khoản thử nghiệm (chỉ hiển thị ở chế độ phát triển):
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { u: 'admin', label: 'Quản lý', role: 'ADMIN' },
-                  { u: 'thungan', label: 'Thu ngân', role: 'ACCOUNTANT' },
-                  { u: 'baove', label: 'Bảo vệ', role: 'OPERATOR' },
+                  { u: 'admin', label: 'Quản lý' },
+                  { u: 'thungan', label: 'Thu ngân' },
+                  { u: 'baove', label: 'Bảo vệ' },
                 ].map((acc) => (
                   <button
                     key={acc.u}
@@ -160,15 +159,17 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
                       setUsername(acc.u);
                       setPassword('123456');
                     }}
-                    className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-left hover:border-indigo-300 hover:bg-indigo-50/50 transition"
+                    className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-left hover:border-indigo-400"
                   >
-                    <div className="text-xs font-bold text-slate-800">{acc.label}</div>
-                    <div className="text-[11px] text-slate-500 font-mono-plate">{acc.u}</div>
+                    <div className="font-mono-plate font-bold text-slate-800 dark:text-slate-100">
+                      {acc.u}
+                    </div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400">{acc.label}</div>
                   </button>
                 ))}
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
