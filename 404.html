@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>404 - Không tìm thấy trang | Smart Parking PTIT</title>
+  <style>
+    :root {
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+      --text: #0F172A;
+      --muted: #475569;
+      --border: #E2E8F0;
+      --primary: #2563EB;
+      --primary-hover: #1D4ED8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px 36px;
+      max-width: 460px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+    }
+    .brand.active .brand-logo {
+      image-rendering: crisp-edges;
+      display: block;
+    }
+    .illustration {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      color: var(--primary);
+    }
+    .code {
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    p {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary);
+      color: #FFFFFF;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.92rem;
+      padding: 10px 20px;
+      border-radius: 10px;
+      transition: background 0.15s ease;
+    }
+    .btn:hover { background: var(--primary-hover); }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand active">
+      <img src="/SmartParkingDemo/assets/logo.svg" onerror="this.onerror=null;this.src='assets/logo.svg';" alt="Smart Parking PTIT" width="28" height="28" class="brand-logo" />
+      <span>Smart Parking PTIT</span>
+    </div>
+
+    <div class="illustration" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" shape-rendering="geometricPrecision">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8v4" />
+        <path d="M12 16h.01" />
+      </svg>
+    </div>
+
+    <div class="code">Lỗi 404</div>
+    <h1>Không tìm thấy trang</h1>
+    <p>Đường dẫn bạn truy cập không tồn tại hoặc đã được thay đổi trong hệ thống quản lý bãi đỗ xe.</p>
+
+    <a href="/SmartParkingDemo/" class="btn">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" shape-rendering="geometricPrecision">
+        <path d="M19 12H5" />
+        <path d="M12 19l-7-7 7-7" />
+      </svg>
+      <span>Quay lại bảng điều khiển</span>
+    </a>
+  </main>
+</body>
+</html>

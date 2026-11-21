@@ -1,12 +1,10 @@
-# Ý tưởng Dự án: Hệ thống Quản lý Bãi đỗ xe Thông minh
+# Ý tưởng & Điểm nổi bật
 
-## 1. Bối cảnh
-Quản lý thủ công gây tốn thời gian, sai sót trong tính phí và khó kiểm soát lưu lượng xe vào/ra thực tế.
+## Bối cảnh
+Bãi đỗ xe truyền thống sử dụng vé giấy và ghi chép rời rạc dễ dẫn đến sai sót đối soát thu ngân, thất thoát thẻ, trùng lặp ô đỗ và không có dữ liệu tức thời để điều phối luồng xe.
 
-## 2. Giải pháp
-Dashboard web trực quan hóa trạng thái bãi xe, tự động hóa tính toán chi phí dựa trên loại xe/thời gian và cung cấp báo cáo doanh thu.
-
-## 3. Các tính năng nổi bật (Differentiators)
-- **Real-time Map**: Hiển thị sơ đồ bãi đỗ với các slot đang trống/bận.
-- **Smart Analytics**: Dự báo giờ cao điểm dựa trên dữ liệu lịch sử.
-- **Data-Driven Rules**: Cấu hình bảng giá linh hoạt trực tiếp từ hệ thống.
+## Giải pháp Smart Parking PTIT (v2.1)
+- **Độ tin cậy CSDL cao:** Chuẩn hóa lược đồ `dbptit` (13 bảng nền + 5 bảng vận hành), khóa dòng `SELECT ... FOR UPDATE` chống tranh chấp đồng thời, migration có phiên bản và lưu trữ chuẩn UTC.
+- **Vận hành Quầy Cổng (POS) tốc độ cao:** Giao diện React 19 + TypeScript hỗ trợ phím tắt (`F2`, `F3`, `1–3`, `Enter`), đồng bộ WebSocket thời gian thực, mã VietQR chuẩn EMVCo/NAPAS và in phiếu nhiệt 80mm.
+- **Kiểm soát nội bộ chặt chẽ:** Phân quyền RBAC (`ADMIN` / `ACCOUNTANT` / `OPERATOR`), mở/chốt ca bàn giao quỹ tiền mặt – chuyển khoản – hoàn tiền và nhật ký kiểm toán nguyên tử `audit_logs`.
+- **Phân tích lịch sử minh bạch:** Biểu đồ doanh thu và lưu lượng theo ngày, loại xe, bãi đỗ gộp đầy đủ cả lượt gửi ngày lẫn đăng ký/gia hạn vé tháng.

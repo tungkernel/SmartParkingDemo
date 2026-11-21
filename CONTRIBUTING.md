@@ -1,44 +1,36 @@
 # Hướng dẫn đóng góp (Contributing)
 
-Cảm ơn bạn đã quan tâm và đóng góp cho **Smart Parking System Demo (Nhóm 10 — PTIT)**. Tài liệu này mô tả quy trình làm việc và các tiêu chuẩn kỹ thuật cần tuân thủ khi gửi thay đổi.
+Tài liệu này quy định quy chuẩn kiến trúc, quy ước commit và bộ lệnh kiểm thử bắt buộc cho dự án **Smart Parking System — Nhóm 10 (PTIT)**.
 
-## 1. Thiết lập môi trường phát triển
+## 1. Quy chuẩn kiến trúc
 
-```powershell
-git clone https://github.com/Luffyreals/SmartParkingDemo.git
-cd SmartParkingDemo
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
+- **Không viết SQL trực tiếp trong router FastAPI hoặc giao diện:** Toàn bộ truy vấn SQL tham số hóa (`%s`) và transaction `SELECT ... FOR UPDATE` nằm trong `src/services/domain/` và `src/services/auth_service.py`.
+- **Thứ tự khóa nhất quán:** Các thao tác ghi nhiều bảng phải dùng `with self.db.transaction() as cursor:` và giữ thứ tự khóa `phuongtien -> vitrido -> thexe -> luotdo -> ca_lam_viec`.
+- **Múi giờ chuẩn:** Toàn bộ `DATETIME` lưu UTC (`+00:00`); ranh giới ngày Việt Nam (UTC+7) tính bằng `vn_day_utc_bounds()` để truy vấn luôn tận dụng chỉ mục (sargable).
+- **Type safety nghiêm ngặt:** Backend khai báo type hints đầy đủ qua `mypy`; Frontend bật `strict: true` + `noUncheckedIndexedAccess` (không dùng `any`).
+- **Bảo mật cấu hình:** Tuyệt đối không commit `.env` hay `.streamlit/secrets.toml`.
 
-Tạo tệp cấu hình cục bộ `.streamlit/secrets.toml` (tệp này đã được bỏ qua trong `.gitignore`, **tuyệt đối không commit** thông tin kết nối cơ sở dữ liệu lên Git).
-
-## 2. Quy chuẩn kiến trúc & mã nguồn
-
-- **Tách lớp rõ ràng:**
-  - `src/app.py` và `src/ui/`: chỉ xử lý giao diện Streamlit, CSS, icon SVG và biểu đồ Altair; không viết câu lệnh SQL trực tiếp tại đây.
-  - `src/services/parking_service.py`: chứa toàn bộ logic nghiệp vụ và truy vấn SQL tham số hóa (`%s`).
-  - `src/services/db_service.py`: quản lý kết nối SSL, `fetch_all`, `fetch_one` và `transaction()`.
-  - `src/models/`: các `@dataclass` ánh xạ schema `dbptit`.
-- **An toàn giao dịch & SQL:**
-  - Mọi thao tác thay đổi trạng thái nhiều bảng phải chạy trong `with self.db.transaction() as cursor:` kèm `SELECT ... FOR UPDATE`.
-  - Các truy vấn có `GROUP BY` phải tuân thủ `sql_mode=only_full_group_by` của TiDB / MySQL 8.x.
-  - Truy vấn lượt xe đang gửi xác định qua `NOT EXISTS (SELECT 1 FROM thanhtoan tt WHERE tt.idld = ld.id)` (không dựa vào `luotdo.giora IS NULL`).
-
-## 3. Quy trình Commit & Pull Request
-
-1. Tạo nhánh mới từ `main`: `git checkout -b feat/<ten-tinh-nang>` hoặc `fix/<ten-loi>`.
-2. Viết commit message theo chuẩn **Conventional Commits**:
-   - `feat(ui): ...` — thêm tính năng giao diện
-   - `fix(parking): ...` — sửa lỗi nghiệp vụ / SQL
-   - `docs: ...` — cập nhật tài liệu
-   - `test: ...` — bổ sung hoặc chỉnh sửa kiểm thử
-3. Chạy kiểm tra cú pháp và toàn bộ unit test trước khi đẩy code:
+## 2. Quy trình kiểm tra trước khi tạo PR
 
 ```powershell
-.venv\Scripts\python.exe -m py_compile src/app.py src/services/parking_service.py src/services/db_service.py
-.venv\Scripts\python.exe -m unittest discover -s tests -v
+# Backend
+.\.venv\Scripts\python.exe -m ruff check src tests
+.\.venv\Scripts\python.exe -m mypy src
+.\.venv\Scripts\python.exe -m pytest tests --cov=src -v
+
+# Frontend
+Set-Location frontend
+npm run lint
+npm run typecheck
+npm run test
+npm run build
 ```
 
-4. Mở Pull Request vào nhánh `main`, mô tả rõ phạm vi thay đổi và kết quả kiểm thử.
+## 3. Quy ước Commit (Conventional Commits)
+
+- `feat(scope): ...` — tính năng mới
+- `fix(scope): ...` — sửa lỗi
+- `refactor(scope): ...` — tái cấu trúc không đổi hành vi
+- `test(scope): ...` — bổ sung hoặc cập nhật kiểm thử
+- `docs(scope): ...` — cập nhật tài liệu
+- `chore(scope): ...` — cấu hình, phụ thuộc, CI/CD

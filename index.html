@@ -537,7 +537,7 @@
   <header class="navbar">
     <div class="container navbar-inner">
       <a href="#" class="brand">
-        <span class="brand-badge">P</span>
+        <img src="assets/logo.svg" alt="Smart Parking PTIT" width="32" height="32" style="border-radius:8px" />
         <span>Smart Parking PTIT</span>
       </a>
       <nav class="nav-links">
@@ -556,47 +556,47 @@
     <section class="hero">
       <div class="container hero-grid">
         <div>
-          <span class="pill">Nhóm 10 · Môn Cơ sở dữ liệu · PTIT</span>
+          <span class="pill">Nhóm 10 · Môn Cơ sở dữ liệu · PTIT · v2.1</span>
           <h1>Quản lý bãi đỗ xe thông minh trên nền <span>TiDB Cloud</span></h1>
           <p>
-            Ứng dụng web Streamlit trực quan hóa toàn bộ 13 bảng dữ liệu <strong>dbptit</strong>,
-            xử lý check-in / check-out nguyên tử với khóa bi quan, quản lý vé tháng,
-            kho thẻ RFID và thống kê doanh thu thời gian thực.
+            Hệ thống Full-Stack <strong>FastAPI (`/api/v1` + WebSocket)</strong> và <strong>React 19 + TypeScript SPA</strong>
+            vận hành trực tiếp trên 16 bảng <strong>dbptit</strong> — hỗ trợ RBAC, đối soát ca trực thu ngân,
+            mã chuyển khoản VietQR EMVCo, in phiếu nhiệt 80mm và giao dịch khóa dòng ACID.
           </p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="https://github.com/Luffyreals/SmartParkingDemo" target="_blank" rel="noopener">
               Mã nguồn GitHub
             </a>
             <a class="btn btn-outline" href="#setup">
-              Hướng dẫn chạy local
+              Hướng dẫn cài đặt cục bộ
             </a>
           </div>
           <div class="tech-row">
-            <span class="tech-tag">Python 3.10+</span>
-            <span class="tech-tag">Streamlit</span>
-            <span class="tech-tag">TiDB Cloud / MySQL</span>
-            <span class="tech-tag">Altair Charts</span>
-            <span class="tech-tag">20 Unit Tests</span>
+            <span class="tech-tag">FastAPI v1 + WebSocket</span>
+            <span class="tech-tag">React 19 + TypeScript</span>
+            <span class="tech-tag">TiDB Cloud / MySQL 8</span>
+            <span class="tech-tag">RBAC + Audit Logs</span>
+            <span class="tech-tag">Pytest + Vitest + CI</span>
           </div>
         </div>
 
         <div class="preview-card">
           <div class="preview-header">
-            <span class="preview-title">Kiến trúc & Quy mô hệ thống</span>
-            <span class="status-dot">dbptit SSL Ready</span>
+            <span class="preview-title">Kiến trúc & Quy mô v2.1</span>
+            <span class="status-dot">dbptit TLS + UTC Ready</span>
           </div>
           <div class="mini-stats">
             <div class="mini-stat">
-              <div class="mini-stat-val">6 trang</div>
-              <div class="mini-stat-lbl">Dashboard tiếng Việt</div>
+              <div class="mini-stat-val">6 phân hệ</div>
+              <div class="mini-stat-lbl">React 19 SPA + Dark Mode</div>
             </div>
             <div class="mini-stat">
-              <div class="mini-stat-val">13 bảng</div>
-              <div class="mini-stat-lbl">Chuẩn hóa SQL dbptit</div>
+              <div class="mini-stat-val">16+ bảng</div>
+              <div class="mini-stat-lbl">SQL dbptit + Migrations</div>
             </div>
             <div class="mini-stat">
-              <div class="mini-stat-val">3 bãi · 105 ô</div>
-              <div class="mini-stat-lbl">Ô tô, Xe máy, Xe đạp</div>
+              <div class="mini-stat-val">3 vai trò</div>
+              <div class="mini-stat-lbl">ADMIN · ACCOUNTANT · OPERATOR</div>
             </div>
             <div class="mini-stat">
               <div class="mini-stat-val">ACID</div>
@@ -604,9 +604,9 @@
             </div>
           </div>
           <div class="mini-list">
-            <div class="mini-list-item"><span>Tầng giao diện</span><strong>src/app.py + src/ui/</strong></div>
-            <div class="mini-list-item"><span>Tầng nghiệp vụ</span><strong>src/services/parking_service.py</strong></div>
-            <div class="mini-list-item"><span>Tầng truy cập dữ liệu</span><strong>src/services/db_service.py</strong></div>
+            <div class="mini-list-item"><span>Frontend SPA</span><strong>frontend/ (React 19 + Vite 8)</strong></div>
+            <div class="mini-list-item"><span>REST & WS API</span><strong>src/api/v1/ + ws.py</strong></div>
+            <div class="mini-list-item"><span>Domain & Data</span><strong>src/services/domain/ + db_service.py</strong></div>
           </div>
         </div>
       </div>
@@ -616,42 +616,42 @@
       <div class="container">
         <div class="section-head">
           <div class="section-kicker">Phân hệ nghiệp vụ</div>
-          <h2 class="section-title">6 màn hình quản lý toàn diện</h2>
+          <h2 class="section-title">6 màn hình vận hành thời gian thực</h2>
           <p class="section-sub">
-            Thiết kế tối ưu tốc độ phản hồi với bộ nhớ đệm TTL, hiệu ứng skeleton loading và bảng dữ liệu hiện đại.
+            Đồng bộ WebSocket tức thời với TanStack Query, phân quyền tuyến đường React Router, phím tắt POS và in biên lai nhiệt 80mm.
           </p>
         </div>
 
         <div class="grid-3">
           <div class="card">
             <div class="card-num">01</div>
-            <h3>Tổng quan & Sơ đồ bãi</h3>
-            <p>5 KPI thời gian thực, thẻ công suất 3 bãi đỗ kèm địa điểm, tỷ lệ lấp đầy từng khu vực, lưới ô đỗ trực quan và thêm nhanh ô đỗ mới.</p>
+            <h3>Cổng Vào / Ra (Gate POS)</h3>
+            <p>Check-in/out nguyên tử chống deadlock, phím tắt F2/F3/1–3, thanh toán VietQR chuẩn EMVCo/NAPAS, xử lý mất thẻ và in phiếu QR 80mm.</p>
           </div>
           <div class="card">
             <div class="card-num">02</div>
-            <h3>Vào / Ra bãi xe</h3>
-            <p>Check-in cấp thẻ và khóa ô đỗ trong transaction; tự nhận diện vé tháng; tính phí dự kiến và thanh toán check-out an toàn.</p>
+            <h3>Tổng quan & Sơ đồ bãi</h3>
+            <p>KPI thời gian thực, thanh công suất bãi/khu vực, lưới ô đỗ lọc tại SQL, bật/tắt bảo trì và đối soát giải phóng ô đỗ & thẻ RFID mồ côi.</p>
           </div>
           <div class="card">
             <div class="card-num">03</div>
-            <h3>Lịch sử giao dịch</h3>
-            <p>Tra cứu biên lai thu phí theo khoảng thời gian, loại xe, biển số, mã thẻ hoặc nhân viên trực kèm nút xuất báo cáo CSV.</p>
+            <h3>Vé tháng & Bảng giá</h3>
+            <p>Đăng ký, gia hạn nhiều tháng, cấp đổi thẻ RFID, hủy trước hạn và quản lý bảng giá kèm kiểm tra trùng lặp nguyên tử.</p>
           </div>
           <div class="card">
             <div class="card-num">04</div>
-            <h3>Vé tháng & Bảng giá</h3>
-            <p>Quản lý thuê bao vé tháng, đăng ký mới kèm ước tính chi phí tự động và tra cứu bảng giá niêm yết theo đối tượng.</p>
+            <h3>Giao dịch & Ca trực</h3>
+            <p>Tra cứu phân trang lọc SQL, xuất CSV phía máy chủ, mở/chốt ca bàn giao quỹ tiền mặt – chuyển khoản – hoàn tiền minh bạch.</p>
           </div>
           <div class="card">
             <div class="card-num">05</div>
-            <h3>Thống kê doanh thu</h3>
-            <p>Biểu đồ Altair trực quan hóa doanh thu theo ngày, lưu lượng lượt xe, cơ cấu loại phương tiện và so sánh theo từng bãi đỗ.</p>
+            <h3>Phân tích Doanh thu</h3>
+            <p>Biểu đồ Recharts doanh thu & lưu lượng theo ngày (UTC+7), cơ cấu loại xe và bãi đỗ gộp đầy đủ cả vé ngày lẫn vé tháng.</p>
           </div>
           <div class="card">
             <div class="card-num">06</div>
-            <h3>Nhân sự & Khách gửi xe</h3>
-            <p>5 tab chuyên sâu: Nhân sự vận hành, Giảng viên & Sinh viên, Khách vãng lai, Kho thẻ xe RFID và Danh bạ phương tiện.</p>
+            <h3>Quản trị RBAC & Kiểm toán</h3>
+            <p>Quản lý tài khoản RBAC thu hồi phiên tức thì, danh bạ nhân sự/khách/phương tiện (ẩn PII), kho thẻ RFID và nhật ký audit_logs.</p>
           </div>
         </div>
       </div>
@@ -661,9 +661,9 @@
       <div class="container">
         <div class="section-head">
           <div class="section-kicker">Cơ sở dữ liệu dbptit</div>
-          <h2 class="section-title">Trực quan hóa đầy đủ 13 bảng SQL</h2>
+          <h2 class="section-title">13 bảng nền SQL + 5 bảng vận hành sản xuất</h2>
           <p class="section-sub">
-            Schema chuẩn hóa trong <code>Dump20261118.sql</code>, chống nhân bản dòng JOIN bằng <code>ROW_NUMBER()</code> và tuân thủ <code>ONLY_FULL_GROUP_BY</code>.
+            Lược đồ chuẩn hóa trong <code>Dump20261118.sql</code> kết hợp <code>MigrationService</code> có phiên bản (<code>schema_migrations</code> + <code>GET_LOCK</code>), chống nhân bản JOIN bằng <code>ROW_NUMBER()</code>.
           </p>
         </div>
 
@@ -690,10 +690,15 @@
             </div>
           </div>
           <div class="schema-group">
-            <h3>Vận hành & Thanh toán</h3>
+            <h3>Vận hành, RBAC & Kiểm toán</h3>
             <div class="chip-list">
               <span class="db-chip">luotdo</span>
               <span class="db-chip">thanhtoan</span>
+              <span class="db-chip">taikhoan</span>
+              <span class="db-chip">refresh_tokens</span>
+              <span class="db-chip">ca_lam_viec</span>
+              <span class="db-chip">audit_logs</span>
+              <span class="db-chip">schema_migrations</span>
             </div>
           </div>
         </div>
@@ -703,29 +708,27 @@
     <section id="setup">
       <div class="container">
         <div class="section-head">
-          <div class="section-kicker">Khởi chạy cục bộ</div>
-          <h2 class="section-title">Cài đặt & Chạy thử trong 4 bước</h2>
+          <div class="section-kicker">Khởi chạy nhanh</div>
+          <h2 class="section-title">Khởi chạy hệ thống cục bộ với FastAPI &amp; React 19</h2>
           <p class="section-sub">
-            Do ứng dụng sử dụng Streamlit và kết nối SSL trực tiếp tới TiDB Cloud, bạn chạy ứng dụng trên môi trường Python local (GitHub Pages chỉ phục vụ trang giới thiệu này).
+            Hệ thống gồm FastAPI backend, React 19 SPA và cơ sở dữ liệu MySQL/TiDB Cloud (GitHub Pages chỉ phục vụ trang giới thiệu tĩnh này).
           </p>
         </div>
 
         <div class="code-box">
-<span class="cm"># 1. Clone repository & tạo môi trường ảo</span>
+<span class="cm"># Bước 1: Clone dự án và tạo cấu hình .env</span>
 git clone https://github.com/Luffyreals/SmartParkingDemo.git
 cd SmartParkingDemo
+copy .env.example .env
+
+<span class="cm"># Bước 2: Cài đặt và khởi chạy Backend FastAPI (Windows PowerShell)</span>
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\pip.exe install -r requirements-dev.txt
+.\.venv\Scripts\uvicorn.exe src.api.main:app --reload --port 8000
 
-<span class="cm"># 2. Cài đặt thư viện & nạp schema Dump20261118.sql vào TiDB / MySQL</span>
-pip install -r requirements.txt
-
-<span class="cm"># 3. Cấu hình .streamlit/secrets.toml (hoặc biến môi trường TIDB_*)</span>
-<span class="cm"># [tidb] host, port = 4000, database = "dbptit", user, password</span>
-
-<span class="cm"># 4. Chạy ứng dụng & kiểm thử</span>
-streamlit run src/app.py
-python -m unittest discover -s tests -v
+<span class="cm"># Bước 3: Khởi chạy Frontend React 19 SPA (terminal thứ 2)</span>
+cd frontend &amp;&amp; npm install &amp;&amp; npm run dev
+<span class="cm"># Truy cập http://localhost:5173 (Swagger API: http://127.0.0.1:8000/docs)</span>
         </div>
       </div>
     </section>

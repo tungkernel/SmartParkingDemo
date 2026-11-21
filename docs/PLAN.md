@@ -1,24 +1,13 @@
-# Project Plan
+# Project Plan & Roadmap
 
-## Giai đoạn 1: Chuẩn bị & Khởi tạo (Hoàn thành)
-- [x] Thiết lập GitHub Repo (`Luffyreals/SmartParkingDemo`).
-- [x] Khởi tạo cấu trúc thư mục (`src`, `docs`, `tests`).
-- [x] Soạn thảo tài liệu nền tảng (`README`, `SPEC`, `LICENSE`, `architecture`, `setup-guide`).
+## Giai đoạn 1–4: Nền tảng CSDL & Prototype Streamlit (Hoàn thành — v1.0 → v1.3)
+- [x] Thiết lập kho mã nguồn, lược đồ 13 bảng `dbptit` (`Dump20261118.sql`) và tài liệu báo cáo đồ án PTIT.
+- [x] Xây dựng `DBService`, `ParkingService` có giao dịch `SELECT ... FOR UPDATE`, giao diện Streamlit 6 trang (`src/app.py`) và trang giới thiệu GitHub Pages (`index.html`).
 
-## Giai đoạn 2: Phát triển Core Logic & Database (Hoàn thành)
-- [x] Thiết lập kết nối TiDB Cloud / MySQL (`mysql-connector-python` qua SSL) trong `src/services/db_service.py`.
-- [x] Xây dựng 12 dataclass ánh xạ schema `dbptit` trong `src/models/`.
-- [x] Xây dựng nghiệp vụ bãi đỗ xe, transaction vào/ra, tính phí, vé tháng, thống kê và seed dữ liệu mẫu trong `src/services/parking_service.py`.
-
-## Giai đoạn 3: Phát triển Giao diện Dashboard (Hoàn thành)
-- [x] Trang 1: Tổng quan & Sơ đồ bãi (KPIs, tình trạng bãi đỗ & khu vực, lưới vị trí đỗ, thêm vị trí mới).
-- [x] Trang 2: Vào / Ra bãi xe (Check-in, theo dõi xe đang gửi, ước tính phí và thanh toán check-out).
-- [x] Trang 3: Lịch sử giao dịch (Tìm kiếm, lọc đa tiêu chí & xuất CSV).
-- [x] Trang 4: Vé tháng & Bảng giá (Đăng ký vé tháng, tra cứu biểu phí).
-- [x] Trang 5: Thống kê doanh thu (Biểu đồ doanh thu theo ngày, lưu lượng, loại phương tiện & theo bãi đỗ).
-- [x] Trang 6: Nhân sự & Khách gửi xe (Nhân sự, Giảng viên/Sinh viên, Khách vãng lai, Kho thẻ xe, Danh bạ phương tiện).
-
-## Giai đoạn 4: Kiểm thử & Hoàn thiện (Hoàn thành)
-- [x] Unit Test (`unittest` — 20 test cases) cho `ParkingService` trong `tests/test_app.py`.
-- [x] Nâng cấp UI/UX hiện đại (`src/ui/`, skeleton loading, modern HTML tables) và kiểm thử trực tiếp với TiDB Cloud.
-- [x] Tạo trang web tĩnh giới thiệu dự án (`index.html` cho GitHub Pages) và đồng bộ hoàn thiện `README.md` cùng thư mục `docs/`.
+## Giai đoạn 5: Kiến trúc Full-Stack Production (Hoàn thành — v2.0 → v2.1)
+- [x] **CSDL & Migration:** Runner migration có phiên bản (`schema_migrations` + `GET_LOCK`), sửa `thanhtoan.idld NULL`, chuẩn hóa `loaithanhtoan`, thống nhất UTC `+00:00`, vá rò rỉ connection pool và bổ sung chỉ mục tổng hợp.
+- [x] **Tách Domain & Models:** Phân tách `ParkingService` thành 6 domain service dưới `src/services/domain/` và thay thế các dataclass cũ bằng bộ Pydantic v2 canonical DTOs (`src/models/`).
+- [x] **FastAPI `/api/v1` & Bảo mật:** Tách 8 router REST, phân trang & lọc tại SQL, xuất CSV phía server, RBAC 3 vai trò + `lot_id` scoping + ẩn PII, PBKDF2 600k + refresh token rotation + thu hồi tức thì qua `token_version`, rate limiting, WebSocket `/ws/live` xác thực single-use ticket và broadcast song song.
+- [x] **React 19 + TypeScript SPA:** Bật `strict: true`, React Router + `React.lazy`, TanStack Query + targeted WS invalidation, Recharts, VietQR chuẩn EMVCo/NAPAS TLV, phím tắt quầy POS, Dark Mode, in nhiệt 80mm và 0 cảnh báo `oxlint`.
+- [x] **Kiểm thử & CI:** Bộ kiểm thử `pytest` + `vitest`, `ruff` + `mypy`, `pyproject.toml` và GitHub Actions CI.
+- [x] **Định vị Streamlit kế thừa:** Khóa ghi mặc định (`ENABLE_LEGACY_STREAMLIT_WRITES=1`), vá regex/deprecations và đồng bộ toàn bộ tài liệu dự án.

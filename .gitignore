@@ -1,4 +1,3 @@
-
 # Agent configuration files
 .agents/
 .gemini/
@@ -7,8 +6,28 @@
 **/gemini.md
 **/subagents/
 **/docs/agents/
+
+# Python virtualenvs, bytecode & test artifacts
 venv/
 .venv/
 __pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Frontend builds & packages
+node_modules/
+frontend/dist/
+frontend/node_modules/
+dist/
+build/
+
+# Secrets & local private docs
+.env
 *.env
+!.env.example
 .streamlit/secrets.toml
+docs/Loi_van_thuyet_trinh.pdf

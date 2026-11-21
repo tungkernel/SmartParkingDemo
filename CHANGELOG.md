@@ -1,43 +1,47 @@
 # Changelog
 
-Tất cả các thay đổi đáng chú ý của dự án **Smart Parking System Demo (Nhóm 10 — PTIT)** được ghi lại tại đây theo chuẩn [Keep a Changelog](https://keepachangelog.com/vi/1.0.0/).
+Tất cả các thay đổi đáng chú ý của dự án **Smart Parking System (Nhóm 10 — PTIT)** được ghi lại theo chuẩn [Keep a Changelog](https://keepachangelog.com/vi/1.0.0/).
+
+## [2.1.0] - 2026-11-21
+
+### Added
+- **Kiến trúc Backend phân tách hoàn chỉnh:** Tách `ParkingService` thành 6 domain service (`gate`, `infrastructure`, `pass`, `billing`, `directory`, `analytics`) dưới `src/services/domain/` và tách `src/api/main.py` thành 8 router phiên bản hóa `/api/v1/*`.
+- **Quản trị cấu hình & Migration có phiên bản:** Thêm `src/core/config.py` (`pydantic-settings`), `src/core/logging.py` (JSON logging + `X-Request-ID`), bảng `schema_migrations` kèm khóa phân tán `GET_LOCK` và bảng `refresh_tokens`.
+- **Bảo mật & Real-time nâng cao:** Refresh token rotation (`/auth/refresh`), thu hồi phiên tức thì qua `token_version` (`/auth/logout`), PBKDF2 600.000 vòng kèm rehash tự động, chống liệt kê tài khoản theo thời gian, rate limiting, xác thực WebSocket `/ws/live` bằng single-use ticket (`/auth/ws-ticket`) kèm heartbeat và broadcast song song.
+- **Hiện đại hóa React 19 SPA:** Bật TypeScript `strict: true` + `noUncheckedIndexedAccess` (xóa 42 `any`), `react-router-dom` kèm `<RequireRole>` và `React.lazy`, `@tanstack/react-query` kết hợp invalidate đích danh từ WebSocket (0 cảnh báo `oxlint`), Dark Mode, phím tắt POS (`F2`/`F3`/`1–3`/`Enter`/`Esc`), VietQR chuẩn EMVCo/NAPAS TLV có CRC-16, biểu đồ `recharts`, in nhiệt 80mm chuẩn `@page`, và bộ kiểm thử `vitest` + React Testing Library.
+- **Đóng gói & CI:** Bổ sung `pyproject.toml`, `requirements-dev.txt`, `.env.example`, `.editorconfig` và GitHub Actions CI (`.github/workflows/ci.yml`).
+
+### Fixed
+- Khắc phục lỗi runtime khi gọi `create_tariff` (lệch thứ tự đối số) và `create_employee`/`update_employee` (lệch tên kwargs) từ FastAPI.
+- Cho phép `thanhtoan.idld NULL` và chuẩn hóa `thanhtoan.loaithanhtoan` (`'Tiền mặt'` / `'Chuyển khoản'`), khắc phục lỗi `1048` khi thu phí vé tháng và lỗi lệch sổ quỹ ca trực.
+- Thống nhất múi giờ lưu trữ UTC `+00:00` kèm chuyển đổi ranh giới ngày Việt Nam (UTC+7), loại bỏ lệch 7 tiếng trên TiDB Cloud.
+- Chặn rò rỉ connection pool trong `DBService` khi socket ngắt giữa chừng và sửa logic retry deadlock/write-conflict TiDB (`1205`, `1213`, `8028`, `9007`).
+- Chặn `OPERATOR` giả mạo `employee_id`, áp dụng phạm vi bãi `lot_id`, ẩn PII trên danh bạ, không cấp thẻ đang gắn vé tháng cho khách vãng lai, sửa lỗi vé tháng hết hạn vẫn miễn phí vĩnh viễn (tự động quy đổi về đơn giá vé ngày thay vì giá vé tháng), sửa tích Đề-các ở `get_vehicles_detail`, gộp doanh thu vé tháng vào biểu đồ loại xe & bãi đỗ.
+- Khóa ghi mặc định trên bản Streamlit kế thừa (`src/app.py`), vá 25 lỗi regex `.str.contains(..., regex=False)`, trùng CSS/icon, lỗi subpath `404.html`, và sửa lỗi ghi đè ô nhập tiền chốt ca khi có sự kiện WebSocket.
+
+## [2.0.0] - 2026-11-21
+
+### Added
+- Ra mắt API FastAPI + WebSocket `/ws/live`, xác thực RBAC (`taikhoan`), ca trực thu ngân (`ca_lam_viec`), nhật ký kiểm toán (`audit_logs`) và giao diện SPA React 19 + TypeScript (`frontend/`).
+- Bổ sung bộ slide thuyết trình 19 trang (`docs/Cơ sở dữ liệu.pptx`).
 
 ## [1.3.0] - 2026-11-19
 
 ### Added
-- Kiểm tra khóa thẻ và kiểm tra trùng vé tháng còn hiệu lực trong `register_monthly_pass` (`SELECT ... FOR UPDATE` trên `thexe` và kiểm tra `vethang.ngayketthuc >= CURDATE()`).
-- Bổ sung 3 unit tests mới trong `tests/test_app.py` (nâng tổng số lên **29 unit tests**).
+- Kiểm tra khóa thẻ và kiểm tra trùng vé tháng còn hiệu lực trong `register_monthly_pass` (`SELECT ... FOR UPDATE`).
 - Xuất bản bộ tài liệu PDF hoàn chỉnh trong `docs/`: [Kich_ban_demo.pdf](docs/Kich_ban_demo.pdf) và [Bao_cao_du_an.pdf](docs/Bao_cao_du_an.pdf).
-
-### Changed
-- Đồng bộ toàn diện schema `Dump20261118.sql` (`dbptit` 13 bảng) với tầng models, service và giao diện: giới hạn `khachhang.hoten` tối đa 30 ký tự, `khuvucdo.ten` tối đa 5 ký tự, chuẩn hóa kiểu `ParkingSlot.trangthai: int`, `TheXe.trangthai: Optional[int]`, `LuotDo.giora: Optional[str]`, `BaiDoXe.diadiem: Optional[str]`, `KhachHang.hoten: Optional[str]`.
-- Cải thiện bố cục giao diện trên 6 trang (`src/app.py`, `src/ui/styles.py`): bộ lọc Trang 1, ưu tiên ô đỗ theo loại xe ở Trang 2, định dạng mã `VT #<id>` số nguyên ở Trang 3/4, xếp dọc biểu đồ và bảng 3 cột ở Trang 5, mở rộng tỷ lệ cột `segmented_control` Đối tượng ở Trang 6 Tab 2.
 
 ## [1.2.0] - 2026-11-19
 
 ### Added
-- Trang web tĩnh giới thiệu dự án ([index.html](index.html)) phục vụ trên GitHub Pages.
-- Tầng giao diện mới `src/ui/` (`icons.py`, `styles.py`) cùng logo thương hiệu `assets/logo.svg` và cấu hình theme `.streamlit/config.toml`.
-- Trang 6 **Nhân sự & Khách gửi xe** với 5 tab chuyên sâu: Nhân sự vận hành (`nhanvien` kèm `cccd`), Giảng viên & Sinh viên (`khachhang`), Khách vãng lai, Kho thẻ xe RFID (`thexe`) và Danh bạ phương tiện (`phuongtien`).
-- Thẻ công suất 3 bãi đỗ kèm địa điểm, bảng tỷ lệ lấp đầy từng khu vực (`get_zones_summary`), biểu đồ doanh thu theo bãi đỗ (`get_revenue_by_lot`), hiệu ứng skeleton loading và bộ nhớ đệm TTL.
-- Hệ thống 11 bảng dữ liệu HTML hiện đại (`_render_modern_table`) với sticky header, badge biển số và pill trạng thái.
-- Bổ sung 6 unit tests mới trong `tests/test_app.py` (tổng cộng 20 test cases).
-
-### Fixed
-- Khắc phục lỗi `ONLY_FULL_GROUP_BY` (1055) trong `get_zones_summary()`.
-- Sửa điều kiện lọc lượt xe đang gửi trong `get_cards_detail()` và `get_vehicles_detail()` sang `NOT EXISTS (... thanhtoan)` thay cho `giora IS NULL`.
-- Chuẩn hóa hiển thị `loaithanhtoan` (`Vé ngày` / `Vé tháng` / `Chưa thanh toán`) trong `get_walkin_visitors()`.
-- Tự động `importlib.reload` các module dịch vụ khi Streamlit hot-reload `src/app.py`.
+- Trang giới thiệu dự án trên GitHub Pages ([index.html](index.html)), hệ thống `src/ui/` và màn hình Trang 6 Nhân sự & Khách gửi xe.
 
 ## [1.1.0] - 2026-11-18
 
 ### Fixed
-- Ngăn chặn lượt đỗ đang hoạt động bị trùng lặp và loại bỏ nhân bản dòng trong truy vấn sơ đồ vị trí đỗ bằng `ROW_NUMBER() OVER (PARTITION BY ld.idvtd ...)`.
-- Bổ sung khóa `SELECT ... FOR UPDATE` cho các luồng `check_in_vehicle`, `check_out_vehicle`, `register_monthly_pass`.
+- Khắc phục trùng lượt đỗ và nhân bản dòng sơ đồ vị trí bằng `ROW_NUMBER()` và `SELECT ... FOR UPDATE`.
 
 ## [1.0.0] - 2026-11-18
 
 ### Added
-- Khởi tạo cấu trúc dự án, schema `Dump20261118.sql` (`dbptit` 13 bảng) và 12 domain models trong `src/models/`.
-- Xây dựng `DBService` (kết nối SSL TiDB Cloud / MySQL) và `ParkingService` (nghiệp vụ vào/ra bãi, tính phí, vé tháng, thống kê, seed demo).
-- Ra mắt ứng dụng Streamlit đầu tiên cùng bộ tài liệu nền tảng trong `docs/` và unit tests ban đầu trong `tests/test_app.py`.
+- Khởi tạo lược đồ `dbptit` (`Dump20261118.sql`), `DBService`, `ParkingService` và giao diện Streamlit ban đầu.

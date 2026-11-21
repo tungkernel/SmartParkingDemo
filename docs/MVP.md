@@ -1,16 +1,15 @@
-# MVP (Minimum Viable Product) Định nghĩa
+# Scope & Feature Milestones (MVP → Production v2.1)
 
-Mục tiêu: Xây dựng Dashboard web kết nối trực tiếp tới `dbptit`, đáp ứng đầy đủ luồng giám sát, giao dịch vào/ra và thống kê doanh thu.
+## Đã hoàn thành trong MVP (v1.x)
+- Giám sát sơ đồ bãi, khu vực và trạng thái ô đỗ từ `dbptit`.
+- Ghi nhận xe vào/ra theo transaction, tính phí gửi xe ngày/vé tháng, quản lý vé tháng, bảng giá và thống kê doanh thu.
 
-## 1. Phạm vi MVP (Đã hoàn thành)
-- [x] **Kết nối Database**: Truy vấn và thực thi transaction ổn định với `dbptit` trên TiDB Cloud / MySQL.
-- [x] **View Trạng thái**: Hiển thị KPI tổng quan, sơ đồ trực quan các vị trí đỗ trống/đang sử dụng và danh sách xe đang gửi.
-- [x] **Nghiệp vụ Vào / Ra & Vé tháng**: Hỗ trợ check-in/check-out, tính phí tự động và đăng ký vé tháng.
-- [x] **View Giao dịch**: Bảng lịch sử các lượt đỗ xe kèm bộ lọc theo thời gian, loại xe, biển số, mã thẻ và xuất CSV.
-- [x] **View Thống kê**: Doanh thu hôm nay, biểu đồ doanh thu theo ngày, lưu lượng, cơ cấu theo loại phương tiện và theo từng bãi đỗ.
-- [x] **Quản lý Nhân sự, Khách gửi xe, Thẻ & Phương tiện**: Hiển thị đầy đủ toàn bộ 13 bảng dữ liệu `dbptit` trực quan.
+## Đã mở rộng lên bản Production (v2.0 → v2.1)
+- Xác thực JWT + Refresh Token Rotation, phân quyền 3 vai trò (`ADMIN`, `ACCOUNTANT`, `OPERATOR`) và kiểm soát phạm vi bãi `lot_id`.
+- Đối soát ca trực thu ngân (`ca_lam_viec`) và nhật ký kiểm toán nguyên tử (`audit_logs`).
+- Giao diện SPA React 19 + TypeScript thời gian thực qua WebSocket xác thực ticket, mã chuyển khoản VietQR EMVCo và in phiếu nhiệt 80mm.
+- Đóng gói chuẩn `pyproject.toml` và CI tự động trên GitHub Actions.
 
-## 2. Ngoài phạm vi MVP (Hướng phát triển tiếp theo)
-- Tích hợp camera AI nhận diện biển số (ALPR).
-- Hệ thống cảnh báo tự động qua email/SMS.
-- Quản lý phân quyền phức tạp (User Roles) và đăng nhập/đăng ký người dùng.
+## Ngoài phạm vi đợt hiện tại (Future Hardware Integrations)
+- Tích hợp camera nhận diện biển số tự động (ANPR/OCR) và thanh chắn barie vật lý (RS485/MQTT).
+- Webhook đối soát tự động từ cổng thanh toán ngân hàng bên thứ ba.

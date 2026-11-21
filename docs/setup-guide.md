@@ -1,62 +1,64 @@
-# Setup Guide
+# Hướng dẫn cài đặt chi tiết (Setup Guide — v2.1)
 
-## 1. Yêu cầu hệ thống
-- Python 3.10 trở lên
-- Kết nối tới TiDB Cloud (`dbptit`) hoặc MySQL Server 8.x
+## 1. Yêu cầu môi trường
+- **Python:** 3.11 trở lên (khuyến nghị 3.12 / 3.14).
+- **Node.js:** 20+ (khuyến nghị 24 LTS) và `npm`.
+- **Database:** TiDB Cloud Serverless hoặc MySQL 8.x (nạp sẵn lược đồ `Dump20261118.sql`).
 
-## 2. Các bước cài đặt và chạy ứng dụng
+## 2. Cài đặt môi trường phát triển cục bộ (Windows PowerShell)
 
-1. **Clone repository:**
-   ```bash
-   git clone https://github.com/Luffyreals/SmartParkingDemo.git
-   cd SmartParkingDemo
-   ```
+### Bước 1: Tạo tệp cấu hình `.env`
+Sao chép `.env.example` sang `.env` và điền thông tin kết nối:
+```env
+APP_ENV=development
+TIDB_HOST=gateway01.ap-northeast-1.prod.aws.tidbcloud.com
+TIDB_PORT=4000
+TIDB_DATABASE=dbptit
+TIDB_USER=<username>
+TIDB_PASSWORD=<password>
+TIDB_POOL_SIZE=8
+TIDB_SSL_CA=
+AUTH_SECRET_KEY=<chuoi-bi-mat-ngau-nhien-toi-thieu-32-ky-tu>
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000
+```
 
-2. **Tạo và kích hoạt môi trường ảo:**
-   ```powershell
-   python -m venv .venv
-   # Windows PowerShell:
-   .\.venv\Scripts\Activate.ps1
-   # Linux / macOS:
-   # source .venv/bin/activate
-   ```
+### Bước 2: Khởi động Backend FastAPI
+```powershell
+python -m venv .venv
+.\.venv\Scripts\pip.exe install -r requirements-dev.txt
+.\.venv\Scripts\uvicorn.exe src.api.main:app --reload --port 8000
+```
+Khi khởi động, `MigrationService` tự động áp dụng các bản migration còn thiếu và `AuthService` khởi tạo các tài khoản mặc định (`admin`, `thungan`, `baove` — mật khẩu dev `123456` nếu bảng `taikhoan` đang trống).
 
-3. **Cài đặt dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Bước 3: Khởi động Frontend React SPA
+```powershell
+Set-Location frontend
+npm install
+npm run dev
+```
+Truy cập `http://localhost:5173` (hoặc chạy `npm run build` để FastAPI phục vụ trực tiếp bản build tại `http://127.0.0.1:8000`).
 
-4. **Khởi tạo Database (nếu dùng database mới):**
-   - Nạp file `Dump20261118.sql` vào TiDB Cloud hoặc MySQL Server để tạo schema `dbptit` cùng dữ liệu danh mục nền (`baidoxe`, `khuvucdo`, `vitrido`, `banggia`, `loaikhachhang`, `loaiphuongtien`).
+### Bước 4: Bản Streamlit kế thừa (chỉ đọc mặc định)
+```powershell
+.\.venv\Scripts\streamlit.exe run src/app.py
+```
+Nếu cần mở khóa ghi trên bản Streamlit phục vụ minh họa cục bộ:
+```powershell
+$env:ENABLE_LEGACY_STREAMLIT_WRITES = "1"
+.\.venv\Scripts\streamlit.exe run src/app.py
+```
 
-5. **Cấu hình thông tin kết nối:**
-   Ứng dụng ưu tiên đọc biến môi trường `TIDB_*`, nếu không có sẽ đọc `.streamlit/secrets.toml`.
+## 3. Chạy bộ kiểm tra & kiểm thử
+```powershell
+# Backend
+.\.venv\Scripts\python.exe -m ruff check src tests
+.\.venv\Scripts\python.exe -m mypy src
+.\.venv\Scripts\python.exe -m pytest tests --cov=src -v
 
-   - **Cách 1 (Khuyên dùng cho local):** Tạo file `.streamlit/secrets.toml`:
-     ```toml
-     [tidb]
-     host = "gateway01.ap-northeast-1.prod.aws.tidbcloud.com"
-     port = 4000
-     database = "dbptit"
-     user = "<your_username>"
-     password = "<your_password>"
-     ```
-   - **Cách 2:** Thiết lập biến môi trường:
-     ```powershell
-     $env:TIDB_HOST = "gateway01.ap-northeast-1.prod.aws.tidbcloud.com"
-     $env:TIDB_PORT = "4000"
-     $env:TIDB_DATABASE = "dbptit"
-     $env:TIDB_USER = "<your_username>"
-     $env:TIDB_PASSWORD = "<your_password>"
-     ```
-
-6. **Chạy ứng dụng Streamlit:**
-   ```bash
-   streamlit run src/app.py
-   ```
-   Mở trình duyệt tại `http://localhost:8501`. Nếu các bảng giao dịch còn trống, bấm **Khởi tạo dữ liệu mẫu** ở thanh sidebar để nạp nhanh nhân viên, thẻ xe, khách hàng, vé tháng và lượt đỗ mẫu.
-
-7. **Chạy Unit Tests:**
-   ```bash
-   python -m unittest discover -s tests -v
-   ```
+# Frontend
+Set-Location frontend
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```

@@ -1,29 +1,23 @@
-# Technical Specification
+# Technical Specification (v2.1.0)
 
-## 1. Tổng quan dự án
-Ứng dụng dashboard web quản lý bãi đỗ xe thông minh, trực quan hóa và thao tác trực tiếp trên cơ sở dữ liệu `dbptit`.
+## 1. Kiến trúc & Công nghệ
 
-## 2. Kiến trúc hệ thống
-- **Frontend (`src/app.py`, `src/ui/`):** Streamlit (Python) với Design System CSS (`styles.py`), SVG icon tối giản (`icons.py`), bảng dữ liệu HTML hiện đại, biểu đồ Altair và xử lý dữ liệu Pandas.
-- **Business Logic (`src/services/parking_service.py`):** Xử lý nghiệp vụ vào/ra bãi, tính phí, quản lý vé tháng, quản lý nhân sự/khách hàng/thẻ xe/phương tiện, thống kê doanh thu và khởi tạo dữ liệu mẫu.
-- **Data Access (`src/services/db_service.py`):** Đóng gói kết nối TiDB Cloud / MySQL qua `mysql-connector-python` (hỗ trợ SSL, truy vấn đơn và transaction đa câu lệnh).
-- **Domain Models (`src/models/`):** Các Python `@dataclass` ánh xạ từng bảng của `dbptit`.
-- **Database:** TiDB Cloud Serverless hoặc MySQL 8.x (`dbptit`).
+- **Backend:** Python 3.11+, FastAPI (`/api/v1/*` + alias `/api/*`), Uvicorn, Pydantic v2, `pydantic-settings`, `mysql-connector-python`.
+- **Frontend:** React 19, TypeScript (`strict: true`, `noUncheckedIndexedAccess`), Vite 8, Tailwind CSS v4, React Router, TanStack Query, Recharts, `qrcode.react`, `lucide-react`.
+- **Database:** TiDB Cloud Serverless / MySQL 8 (`dbptit` — 13 bảng nền + 5 bảng sản xuất: `taikhoan`, `refresh_tokens`, `ca_lam_viec`, `audit_logs`, `schema_migrations`).
+- **Legacy UI:** Streamlit + Pandas + Altair (`src/app.py`, chế độ chỉ đọc mặc định).
+- **QA & CI/CD:** `pytest`, `pytest-asyncio`, `pytest-cov`, `ruff`, `mypy`, `oxlint`, `vitest`, `@testing-library/react`, GitHub Actions.
 
-## 3. Các phân hệ chức năng đã triển khai
-- **Tổng quan & Sơ đồ bãi:** Theo dõi 5 KPI tổng quan, thẻ công suất từng bãi đỗ kèm địa điểm, tỷ lệ lấp đầy từng khu vực, lưới trạng thái ô đỗ theo bãi/khu vực và thêm mới vị trí đỗ.
-- **Vào / Ra bãi xe:** Check-in xe mới (cấp thẻ, gán vị trí đỗ), theo dõi xe đang gửi, ước tính phí theo bảng giá và check-out thanh toán.
-- **Lịch sử giao dịch:** Lọc lịch sử lượt đỗ theo ngày, loại xe, biển số, mã thẻ hoặc nhân viên và xuất báo cáo CSV.
-- **Vé tháng & Bảng giá:** Đăng ký vé tháng kèm ước tính chi phí, theo dõi thời hạn hiệu lực và tra cứu bảng giá dịch vụ.
-- **Thống kê doanh thu:** Biểu đồ doanh thu theo ngày, lưu lượng lượt xe, cơ cấu theo loại phương tiện và doanh thu theo từng bãi đỗ.
-- **Nhân sự & Khách gửi xe:** Quản lý nhân sự (`nhanvien`), giảng viên/sinh viên (`khachhang`), khách vãng lai, kho thẻ xe (`thexe`) và danh bạ phương tiện (`phuongtien`).
+## 2. Yêu cầu chức năng cốt lõi
 
-## 4. Database Schema (`dbptit`)
-- **13 bảng chính:** `baidoxe`, `banggia`, `khachhang`, `khuvucdo`, `loaikhachhang`, `loaiphuongtien`, `luotdo`, `nhanvien`, `phuongtien`, `thanhtoan`, `thexe`, `vethang`, `vitrido`.
-- **Script khởi tạo:** `Dump20261118.sql`.
-- **Khóa chính / Khóa ngoại & Ràng buộc:** Đảm bảo toàn vẹn tham chiếu cho toàn bộ luồng gửi xe, thẻ xe, vị trí đỗ và thanh toán.
+1. **Xác thực & Phân quyền (RBAC):** Đăng nhập nhận Access Token (JWT HS256, TTL 1 giờ) và Refresh Token (rotation, TTL 7 ngày); 3 vai trò `ADMIN`, `ACCOUNTANT`, `OPERATOR` (phạm vi bãi đỗ `lot_id` và ẩn PII cho `OPERATOR`).
+2. **Vận hành Cổng POS:** Check-in, ước tính phí, check-out (Tiền mặt / VietQR EMVCo Chuyển khoản), xử lý mất thẻ (hỗ trợ cấp đổi thẻ mới cho vé tháng), chuyển ô đỗ, hủy lượt nhập nhầm, in phiếu/biên lai 80mm.
+3. **Vé tháng & Bảng giá:** Đăng ký, gia hạn nhiều tháng, đổi xe/thẻ, hủy trước hạn, điều chỉnh đơn giá.
+4. **Giao dịch & Ca trực:** Tra cứu phân trang lọc tại SQL, xuất CSV, mở/chốt ca đối soát tiền mặt – chuyển khoản – hoàn tiền.
+5. **Phân tích & Kiểm toán:** Biểu đồ doanh thu theo ngày/loại xe/bãi đỗ (gộp đủ vé ngày và vé tháng) và nhật ký `audit_logs` ghi nguyên tử trong transaction.
 
-## 5. Môi trường triển khai
-- **OS:** Windows / Linux / macOS
-- **Python:** 3.10+ (đã kiểm chứng trên Python 3.14)
-- **Dependencies (`requirements.txt`):** `streamlit`, `pandas`, `mysql-connector-python`
+## 3. Yêu cầu phi chức năng
+
+- Mọi truy vấn SQL tham số hóa 100% (`%s`), không nội suy chuỗi giá trị.
+- Không chặn event loop trên các route bất đồng bộ (`anyio.to_thread.run_sync`).
+- Cổng kiểm tra chất lượng bắt buộc: `ruff` 0 lỗi, `mypy` 0 lỗi, `oxlint` 0 lỗi/0 cảnh báo, `tsc -b --noEmit` 0 lỗi, `pytest` và `vitest` 100% pass.
