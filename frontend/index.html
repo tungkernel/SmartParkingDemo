@@ -3,10 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#E8E4DC" />
+    <meta name="theme-color" content="#E8E4DC" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#070B14" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Smart Parking PTIT — Hệ thống Quản lý Bãi đỗ xe</title>
+    <script>
+      (function () {
+        try {
+          var savedTheme = localStorage.getItem('smart_parking_theme');
+          if (savedTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+          }
+          var savedAccent = localStorage.getItem('smart_parking_accent');
+          if (
+            savedAccent === 'cobalt' ||
+            savedAccent === 'crimson' ||
+            savedAccent === 'emerald' ||
+            savedAccent === 'amber'
+          ) {
+            document.documentElement.setAttribute('data-accent', savedAccent);
+          } else {
+            document.documentElement.setAttribute('data-accent', 'cobalt');
+          }
+        } catch (_e) {
+          /* ignore storage restrictions */
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased transition-colors">
+  <body class="antialiased transition-colors duration-200">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

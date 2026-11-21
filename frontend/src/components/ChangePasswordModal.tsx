@@ -2,7 +2,9 @@ import { KeyRound } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useToast } from '../context/ToastContext';
 import { apiRequest, getErrorMessage } from '../lib/api';
+import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { PasswordInput } from './ui/PasswordInput';
 
 interface ChangePasswordModalProps {
   open: boolean;
@@ -71,7 +73,12 @@ export function ChangePasswordModal({
       open={open}
       onClose={resetAndClose}
       title="Đổi mật khẩu tài khoản"
-      titleIcon={<KeyRound className="h-4 w-4 text-indigo-600" />}
+      subtitle="Phiên hiện tại sẽ được đăng xuất sau khi cập nhật thành công"
+      titleIcon={
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft">
+          <KeyRound className="h-4 w-4" />
+        </span>
+      }
       maxWidthClass="max-w-md"
     >
       <form onSubmit={(e) => void handleSubmit(e)} className="p-5 space-y-4 text-xs">
@@ -87,77 +94,62 @@ export function ChangePasswordModal({
         <div>
           <label
             htmlFor={`${idPrefix}-old`}
-            className="block font-semibold text-slate-600 dark:text-slate-300 mb-1"
+            className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
           >
             Mật khẩu hiện tại
           </label>
-          <input
+          <PasswordInput
             id={`${idPrefix}-old`}
-            type="password"
             required
             autoComplete="current-password"
             value={oldPassword}
             onChange={(e) => setOldPassword(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
           />
         </div>
 
         <div>
           <label
             htmlFor={`${idPrefix}-new`}
-            className="block font-semibold text-slate-600 dark:text-slate-300 mb-1"
+            className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
           >
             Mật khẩu mới (tối thiểu 8 ký tự)
           </label>
-          <input
+          <PasswordInput
             id={`${idPrefix}-new`}
-            type="password"
             required
             minLength={8}
             maxLength={128}
             autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
           />
         </div>
 
         <div>
           <label
             htmlFor={`${idPrefix}-confirm`}
-            className="block font-semibold text-slate-600 dark:text-slate-300 mb-1"
+            className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
           >
             Nhập lại mật khẩu mới
           </label>
-          <input
+          <PasswordInput
             id={`${idPrefix}-confirm`}
-            type="password"
             required
             minLength={8}
             maxLength={128}
             autoComplete="new-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none"
           />
         </div>
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={resetAndClose}
-            className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-          >
+        <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <Button variant="secondary" disabled={submitting} onClick={resetAndClose}>
             Hủy
-          </button>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
+          </Button>
+          <Button type="submit" loading={submitting}>
             {submitting ? 'Đang cập nhật...' : 'Lưu mật khẩu mới'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

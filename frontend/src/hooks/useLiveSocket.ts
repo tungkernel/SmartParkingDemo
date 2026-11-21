@@ -20,11 +20,26 @@ export function resolveLiveSocketUrl(ticket: string, apiBase = API_BASE): string
 
 const EVENT_QUERY_MAP: Record<string, string[][]> = {
   turn_checked_in: [['turns'], ['slots'], ['cards'], ['overview'], ['alerts']],
-  turn_checked_out: [['turns'], ['slots'], ['cards'], ['overview'], ['alerts'], ['transactions'], ['shifts']],
+  turn_checked_out: [
+    ['turns'],
+    ['slots'],
+    ['cards'],
+    ['overview'],
+    ['alerts'],
+    ['transactions'],
+    ['shifts'],
+  ],
   turn_cancelled: [['turns'], ['slots'], ['cards'], ['overview'], ['alerts']],
   slots_updated: [['slots'], ['overview'], ['turns'], ['alerts']],
   infrastructure_updated: [['overview'], ['lots'], ['zones'], ['slots'], ['catalogs']],
-  passes_updated: [['passes'], ['passes-summary'], ['cards'], ['alerts'], ['overview'], ['transactions']],
+  passes_updated: [
+    ['passes'],
+    ['passes-summary'],
+    ['cards'],
+    ['alerts'],
+    ['overview'],
+    ['transactions'],
+  ],
 };
 
 export function useLiveSocket(enabled: boolean): boolean {

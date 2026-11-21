@@ -56,10 +56,7 @@ export function buildVietQrPayload(params: {
 
   // Field 38: Merchant Account Information (NAPAS VietQR)
   const beneficiary = tlv('00', bankBin) + tlv('01', accountNo);
-  const napasAccountInfo =
-    tlv('00', 'A000000727') +
-    tlv('01', beneficiary) +
-    tlv('02', 'QRIBFTTA');
+  const napasAccountInfo = tlv('00', 'A000000727') + tlv('01', beneficiary) + tlv('02', 'QRIBFTTA');
 
   const parts: string[] = [
     tlv('00', '01'), // Payload Format Indicator

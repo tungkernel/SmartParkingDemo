@@ -346,7 +346,13 @@ export interface CatalogsResponse {
 export interface AnalyticsSummary {
   daily: Array<{ ngay: string; so_luot: number; doanh_thu: number }>;
   by_vehicle_type: Array<{ loaiphuongtien: string; so_luot: number; doanh_thu: number }>;
-  by_lot: Array<{ lot_id?: number; tenbaido: string; diadiem: string; so_luot: number; doanh_thu: number }>;
+  by_lot: Array<{
+    lot_id?: number;
+    tenbaido: string;
+    diadiem: string;
+    so_luot: number;
+    doanh_thu: number;
+  }>;
   pass_summary: PassSummary;
 }
 

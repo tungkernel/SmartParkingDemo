@@ -157,8 +157,7 @@ export async function apiRequest<T>(
   }
 
   if (!res.ok) {
-    const isAuthEndpoint =
-      path.includes('/auth/login') || path.includes('/auth/refresh');
+    const isAuthEndpoint = path.includes('/auth/login') || path.includes('/auth/refresh');
     if (res.status === 401 && !isAuthEndpoint) {
       if (allowRetryRefresh) {
         const refreshed = await tryRefreshAccessToken();

@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useEffect } from 'react';
 import { formatDateTime, formatVnd } from '../lib/api';
 import type { PrintableDocument } from '../types';
+import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
 export type { PrintableDocument };
@@ -47,81 +48,83 @@ export function TicketPrintModal({ doc, onClose }: TicketPrintModalProps) {
       rootId="print-modal-root"
       maxWidthClass="max-w-md"
       title={isTicket ? 'In phiếu gửi xe (80mm)' : 'In biên lai thanh toán (80mm)'}
-      titleIcon={<Printer className="h-4 w-4 text-indigo-600" />}
+      subtitle="Bản xem trước khổ giấy in nhiệt 80mm chuẩn"
+      titleIcon={
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft">
+          <Printer className="h-4 w-4" />
+        </span>
+      }
       footer={
         <>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-          >
+          <Button variant="secondary" onClick={onClose}>
             Đóng (Esc)
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="primary"
+            icon={<Printer className="h-4 w-4" />}
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-xs"
           >
-            <Printer className="h-4 w-4" />
             In ngay (Ctrl+P)
-          </button>
+          </Button>
         </>
       }
     >
-      <div className="p-6 bg-slate-100/70 dark:bg-slate-950/60 flex justify-center">
+      <div className="p-6 bg-slate-200/70 dark:bg-slate-950/80 flex justify-center">
         <div
           id="print-ticket-area"
-          className="w-[300px] rounded-xl border border-dashed border-slate-300 bg-white p-5 text-slate-900 shadow-xs"
+          className="w-[300px] rounded-xl border border-dashed border-slate-300 bg-white p-5 text-slate-900 shadow-lg"
         >
           <div className="text-center border-b border-dashed border-slate-300 pb-3 mb-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <div className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
               Smart Parking PTIT
             </div>
-            <h3 className="mt-1 text-base font-extrabold uppercase tracking-tight">
+            <h3 className="mt-1 text-base font-extrabold uppercase tracking-tight text-slate-950">
               {isTicket ? 'Phiếu Gửi Xe' : 'Biên Lai Thu Phí'}
             </h3>
-            <div className="mt-0.5 text-xs text-slate-500">Mã #{doc.id}</div>
+            <div className="mt-0.5 font-mono-plate text-xs text-slate-500">Mã #{doc.id}</div>
           </div>
 
           <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between gap-2">
+            <div className="flex justify-between gap-2 items-center">
               <span className="text-slate-500">Biển số:</span>
-              <span className="font-mono-plate font-bold text-sm">{doc.plate}</span>
+              <span className="font-mono-plate font-extrabold text-sm tracking-wider text-slate-950">
+                {doc.plate}
+              </span>
             </div>
             {doc.vehicleType && (
               <div className="flex justify-between gap-2">
                 <span className="text-slate-500">Loại xe:</span>
-                <span className="font-medium">{doc.vehicleType}</span>
+                <span className="font-medium capitalize">{doc.vehicleType}</span>
               </div>
             )}
             {doc.cardCode && (
               <div className="flex justify-between gap-2">
                 <span className="text-slate-500">Mã thẻ RFID:</span>
-                <span className="font-mono-plate font-semibold">{doc.cardCode}</span>
+                <span className="font-mono-plate font-semibold">#{doc.cardCode}</span>
               </div>
             )}
             {doc.slotLabel && (
               <div className="flex justify-between gap-2">
                 <span className="text-slate-500">Vị trí đỗ:</span>
-                <span className="font-semibold">{doc.slotLabel}</span>
+                <span className="font-semibold text-right">{doc.slotLabel}</span>
               </div>
             )}
             {doc.ticketType && (
               <div className="flex justify-between gap-2">
                 <span className="text-slate-500">Loại vé:</span>
-                <span className="font-medium">{doc.ticketType}</span>
+                <span className="font-medium text-right">{doc.ticketType}</span>
               </div>
             )}
             {doc.checkinTime && (
               <div className="flex justify-between gap-2">
                 <span className="text-slate-500">Giờ vào:</span>
-                <span>{formatDateTime(doc.checkinTime)}</span>
+                <span className="tabular-nums">{formatDateTime(doc.checkinTime)}</span>
               </div>
             )}
             {doc.checkoutTime && (
               <div className="flex justify-between gap-2">
                 <span className="text-slate-500">Giờ ra / TT:</span>
-                <span>{formatDateTime(doc.checkoutTime)}</span>
+                <span className="tabular-nums">{formatDateTime(doc.checkoutTime)}</span>
               </div>
             )}
             {doc.paymentMethod && (
@@ -141,7 +144,9 @@ export function TicketPrintModal({ doc, onClose }: TicketPrintModalProps) {
           {!isTicket && doc.amount !== undefined && (
             <div className="mt-3 pt-3 border-t border-dashed border-slate-300 flex items-center justify-between">
               <span className="text-xs font-semibold uppercase text-slate-600">Tổng thu</span>
-              <span className="text-lg font-extrabold text-slate-900">{formatVnd(doc.amount)}</span>
+              <span className="font-mono-plate text-lg font-extrabold text-slate-950">
+                {formatVnd(doc.amount)}
+              </span>
             </div>
           )}
 

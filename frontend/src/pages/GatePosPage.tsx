@@ -1,25 +1,39 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { PrintableDocument } from '../components/TicketPrintModal';
 import { ActiveTurnsTable } from '../components/gate/ActiveTurnsTable';
+import type { TurnQuickFilter } from '../components/gate/ActiveTurnsTable';
 import { CheckInPanel } from '../components/gate/CheckInPanel';
 import { CheckoutModal } from '../components/gate/CheckoutModal';
+import { GateStatsStrip } from '../components/gate/GateStatsStrip';
 import { MoveSlotModal } from '../components/gate/MoveSlotModal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useToast } from '../context/ToastContext';
 import { apiRequest, getErrorMessage } from '../lib/api';
+import { getHoursParked } from '../lib/time';
 import type {
   ActiveTurn,
   AuthUser,
   CardRecord,
   CatalogsResponse,
   FeeQuote,
+  ParkingLot,
   ParkingSlot,
   PaymentMethod,
 } from '../types';
 
 export function normalizePlateKey(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, '');
+}
+
+export function findMatchingLotForVehicleType(
+  lots: ParkingLot[],
+  vehicleTypeName: string | undefined,
+): ParkingLot | null {
+  const normalized = vehicleTypeName?.trim().toLowerCase();
+  if (!normalized) return null;
+  return lots.find((lot) => lot.tenbaido.toLowerCase().includes(normalized)) ?? null;
 }
 
 export function selectGateCheckInCards(
@@ -60,9 +74,16 @@ interface GatePosPageProps {
   onPrint: (doc: PrintableDocument) => void;
 }
 
+function isMonthlyTurn(turn: ActiveTurn): boolean {
+  return turn.is_monthly_pass !== undefined
+    ? Boolean(turn.is_monthly_pass)
+    : turn.loaive === 'tháng';
+}
+
 export function GatePosPage({ user, onPrint }: GatePosPageProps) {
   const { notify } = useToast();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const plateInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -72,7 +93,24 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
   const [selectedLotId, setSelectedLotId] = useState<number | ''>(user.lot_id ?? '');
   const [slotId, setSlotId] = useState<number | ''>('');
   const [cardId, setCardId] = useState<number | ''>('');
-  const [search, setSearch] = useState('');
+  const [quickFilter, setQuickFilter] = useState<TurnQuickFilter>('all');
+
+  // URL ?q= is single source of truth so deep-links from Alerts/CommandPalette/Overview work seamlessly
+  const search = searchParams.get('q') ?? '';
+  const queryParamQ = searchParams.get('q');
+
+  useEffect(() => {
+    if (queryParamQ) {
+      searchInputRef.current?.focus();
+    }
+  }, [queryParamQ]);
+
+  const handleSearchChange = (val: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (val) next.set('q', val);
+    else next.delete('q');
+    setSearchParams(next, { replace: true });
+  };
 
   // Modal states
   const [checkoutTurn, setCheckoutTurn] = useState<ActiveTurn | null>(null);
@@ -98,8 +136,7 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
 
   const slotsQuery = useQuery<ParkingSlot[]>({
     queryKey: ['slots', 'free'],
-    queryFn: ({ signal }) =>
-      apiRequest<ParkingSlot[]>('/api/v1/slots?status_filter=1', { signal }),
+    queryFn: ({ signal }) => apiRequest<ParkingSlot[]>('/api/v1/slots?status_filter=1', { signal }),
   });
 
   const cardsQuery = useQuery<CardRecord[]>({
@@ -128,14 +165,36 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
     [allGateCards, plate],
   );
 
-  // Derived defaults without cascading setState-in-effect
   const effectiveVehicleTypeId =
-    vehicleTypeId ||
-    matchedPassCard?.pass_vehicle_type_id ||
-    catalogs?.vehicle_types[0]?.id ||
-    '';
+    vehicleTypeId || matchedPassCard?.pass_vehicle_type_id || catalogs?.vehicle_types[0]?.id || '';
+  const effectiveVehicleType = useMemo(
+    () => catalogs?.vehicle_types.find((vt) => vt.id === Number(effectiveVehicleTypeId)),
+    [catalogs, effectiveVehicleTypeId],
+  );
+  const matchedLotForVehicle = useMemo(
+    () => findMatchingLotForVehicleType(catalogs?.lots ?? [], effectiveVehicleType?.tenloai),
+    [catalogs, effectiveVehicleType],
+  );
   const effectiveLotId =
-    selectedLotId || user.lot_id || catalogs?.lots[0]?.id || '';
+    selectedLotId || user.lot_id || matchedLotForVehicle?.id || catalogs?.lots[0]?.id || '';
+
+  const handleVehicleTypeChange = useCallback(
+    (nextVtId: number) => {
+      setVehicleTypeId(nextVtId);
+      const vt = catalogs?.vehicle_types.find((v) => v.id === nextVtId);
+      const matchingLot = findMatchingLotForVehicleType(catalogs?.lots ?? [], vt?.tenloai);
+      if (matchingLot) {
+        setSelectedLotId(matchingLot.id);
+        setSlotId('');
+      }
+    },
+    [catalogs],
+  );
+
+  const selectedLot = useMemo(
+    () => catalogs?.lots.find((l) => l.id === Number(effectiveLotId)),
+    [catalogs, effectiveLotId],
+  );
 
   const slotsForLot = useMemo(() => {
     if (!effectiveLotId) return availableSlots;
@@ -156,16 +215,36 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
     return checkInCards[0]?.id ?? '';
   }, [cardId, checkInCards, matchedPassCard]);
 
+  const turnCounts = useMemo(() => {
+    let monthly = 0;
+    let overdue = 0;
+    activeTurns.forEach((t) => {
+      if (isMonthlyTurn(t)) monthly += 1;
+      if (getHoursParked(t.giovao) >= 24) overdue += 1;
+    });
+    return {
+      all: activeTurns.length,
+      daily: activeTurns.length - monthly,
+      monthly,
+      overdue,
+    };
+  }, [activeTurns]);
+
   const filteredTurns = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return activeTurns;
-    return activeTurns.filter(
-      (t) =>
+    return activeTurns.filter((t) => {
+      if (quickFilter === 'daily' && isMonthlyTurn(t)) return false;
+      if (quickFilter === 'monthly' && !isMonthlyTurn(t)) return false;
+      if (quickFilter === 'overdue' && getHoursParked(t.giovao) < 24) return false;
+      if (!q) return true;
+      return (
         t.bienso.toLowerCase().includes(q) ||
         t.mathe.toLowerCase().includes(q) ||
-        t.chu_xe.toLowerCase().includes(q),
-    );
-  }, [activeTurns, search]);
+        t.chu_xe.toLowerCase().includes(q) ||
+        `${t.khuvuc}-${t.vitri}`.toLowerCase().includes(q)
+      );
+    });
+  }, [activeTurns, search, quickFilter]);
 
   // POS keyboard shortcuts (F2 plate, F3 or / search, 1-3 vehicle type)
   useEffect(() => {
@@ -195,18 +274,19 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
         searchInputRef.current?.focus();
       } else if (e.key === '1' || e.key === '2' || e.key === '3') {
         const vt = catalogs?.vehicle_types[Number(e.key) - 1];
-        if (vt) setVehicleTypeId(vt.id);
+        if (vt) handleVehicleTypeChange(vt.id);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [catalogs, checkoutTurn, moveTurn, cancelTurnTarget]);
+  }, [catalogs, checkoutTurn, moveTurn, cancelTurnTarget, handleVehicleTypeChange]);
 
   const invalidateGateData = () => {
     void queryClient.invalidateQueries({ queryKey: ['turns'] });
     void queryClient.invalidateQueries({ queryKey: ['slots'] });
     void queryClient.invalidateQueries({ queryKey: ['cards'] });
     void queryClient.invalidateQueries({ queryKey: ['overview'] });
+    void queryClient.invalidateQueries({ queryKey: ['catalogs'] });
     void queryClient.invalidateQueries({ queryKey: ['alerts'] });
     void queryClient.invalidateQueries({ queryKey: ['shifts'] });
   };
@@ -316,7 +396,7 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
     const sId = Number(effectiveSlotId);
     const cId = Number(effectiveCardId);
     const vtName = catalogs?.vehicle_types.find((v) => v.id === vtId)?.tenloai;
-    const slot = slotsForLot.find((s) => s.id === sId);
+    const slot = availableSlots.find((s) => s.id === sId);
     const card = checkInCards.find((c) => c.id === cId);
     checkInMutation.mutate({
       plate: plate.trim().toUpperCase(),
@@ -344,64 +424,85 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
     null;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-      <div className="xl:col-span-4">
-        <CheckInPanel
-          plateInputRef={plateInputRef}
-          plate={plate}
-          onPlateChange={(val) => {
-            setPlate(val);
-            setCardId('');
-          }}
-          vehicleTypeId={effectiveVehicleTypeId}
-          onVehicleTypeChange={setVehicleTypeId}
-          selectedLotId={effectiveLotId}
-          onLotChange={(id) => {
-            setSelectedLotId(id);
-            setSlotId('');
-          }}
-          slotId={effectiveSlotId}
-          onSlotChange={setSlotId}
-          cardId={effectiveCardId}
-          onCardChange={setCardId}
-          catalogs={catalogs}
-          slotsForLot={slotsForLot}
-          availableCards={checkInCards}
-          matchedPassCard={matchedPassCard}
-          submitting={checkInMutation.isPending}
-          onSubmit={handleCheckIn}
-        />
-      </div>
+    <div className="flex-1 min-h-0 flex flex-col gap-3.5">
+      <GateStatsStrip
+        selectedLot={selectedLot}
+        activeCount={turnCounts.all}
+        monthlyCount={turnCounts.monthly}
+        overdueCount={turnCounts.overdue}
+        availableCardsCount={checkInCards.length}
+        onFilterOverdue={() => setQuickFilter((prev) => (prev === 'overdue' ? 'all' : 'overdue'))}
+      />
 
-      <div className="xl:col-span-8">
-        <ActiveTurnsTable
-          searchInputRef={searchInputRef}
-          search={search}
-          onSearchChange={setSearch}
-          turns={filteredTurns}
-          totalCount={activeTurns.length}
-          loading={turnsQuery.isLoading}
-          canManageTurns={user.role === 'ADMIN' || user.role === 'OPERATOR'}
-          busyTurnId={busyTurnId}
-          onOpenCheckout={openCheckoutModal}
-          onOpenMoveSlot={(turn) => {
-            setMoveTurn(turn);
-            setTargetSlotId('');
-          }}
-          onRequestCancel={setCancelTurnTarget}
-          onPrintTicket={(turn) =>
-            onPrint({
-              kind: 'ticket',
-              id: turn.id_luotdo,
-              plate: turn.bienso,
-              vehicleType: turn.loaiphuongtien,
-              slotLabel: `${turn.tenbaido} · ${turn.khuvuc}-${turn.vitri}`,
-              cardCode: turn.mathe,
-              checkinTime: turn.giovao,
-              operatorName: turn.nhanvien,
-            })
-          }
-        />
+      <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-12 xl:grid-rows-1 gap-4 items-stretch">
+        <div className="xl:col-span-4 min-h-0 flex flex-col">
+          <CheckInPanel
+            plateInputRef={plateInputRef}
+            plate={plate}
+            onPlateChange={(val) => {
+              setPlate(val);
+              setCardId('');
+            }}
+            vehicleTypeId={effectiveVehicleTypeId}
+            onVehicleTypeChange={handleVehicleTypeChange}
+            selectedLotId={effectiveLotId}
+            onLotChange={(id) => {
+              setSelectedLotId(id);
+              setSlotId('');
+            }}
+            slotId={effectiveSlotId}
+            onSlotChange={setSlotId}
+            cardId={effectiveCardId}
+            onCardChange={setCardId}
+            catalogs={catalogs}
+            slotsForLot={slotsForLot}
+            allAvailableSlots={availableSlots}
+            onSelectSlotFromMap={(nextSlotId, nextLotId) => {
+              setSelectedLotId(nextLotId);
+              setSlotId(nextSlotId);
+            }}
+            availableCards={checkInCards}
+            matchedPassCard={matchedPassCard}
+            submitting={checkInMutation.isPending}
+            onSubmit={handleCheckIn}
+          />
+        </div>
+
+        <div className="xl:col-span-8 min-h-0 flex flex-col">
+          <ActiveTurnsTable
+            searchInputRef={searchInputRef}
+            search={search}
+            onSearchChange={handleSearchChange}
+            quickFilter={quickFilter}
+            onQuickFilterChange={setQuickFilter}
+            counts={turnCounts}
+            turns={filteredTurns}
+            totalCount={activeTurns.length}
+            loading={turnsQuery.isLoading}
+            error={turnsQuery.isError ? getErrorMessage(turnsQuery.error) : null}
+            onRetry={() => void turnsQuery.refetch()}
+            canManageTurns={user.role === 'ADMIN' || user.role === 'OPERATOR'}
+            busyTurnId={busyTurnId}
+            onOpenCheckout={openCheckoutModal}
+            onOpenMoveSlot={(turn) => {
+              setMoveTurn(turn);
+              setTargetSlotId('');
+            }}
+            onRequestCancel={setCancelTurnTarget}
+            onPrintTicket={(turn) =>
+              onPrint({
+                kind: 'ticket',
+                id: turn.id_luotdo,
+                plate: turn.bienso,
+                vehicleType: turn.loaiphuongtien,
+                slotLabel: `${turn.tenbaido} · ${turn.khuvuc}-${turn.vitri}`,
+                cardCode: turn.mathe,
+                checkinTime: turn.giovao,
+                operatorName: turn.nhanvien,
+              })
+            }
+          />
+        </div>
       </div>
 
       <CheckoutModal
@@ -440,7 +541,10 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
         submitting={moveSlotMutation.isPending}
         onConfirm={() => {
           if (moveTurn && targetSlotId) {
-            moveSlotMutation.mutate({ turnId: moveTurn.id_luotdo, newSlotId: Number(targetSlotId) });
+            moveSlotMutation.mutate({
+              turnId: moveTurn.id_luotdo,
+              newSlotId: Number(targetSlotId),
+            });
           }
         }}
         onClose={() => setMoveTurn(null)}

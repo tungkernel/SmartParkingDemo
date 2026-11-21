@@ -10,7 +10,10 @@ export function exportRowsToCsv(
   rows: Array<Array<unknown>>,
   filename: string,
 ): void {
-  const lines = [headers.map(escapeCsvCell).join(','), ...rows.map((r) => r.map(escapeCsvCell).join(','))];
+  const lines = [
+    headers.map(escapeCsvCell).join(','),
+    ...rows.map((r) => r.map(escapeCsvCell).join(',')),
+  ];
   const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

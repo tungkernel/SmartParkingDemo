@@ -63,11 +63,7 @@ describe('Security, Gate POS & WebSocket hardening', () => {
 
     render(
       <ToastProvider>
-        <ChangePasswordModal
-          open
-          onClose={onClose}
-          onPasswordChanged={onPasswordChanged}
-        />
+        <ChangePasswordModal open onClose={onClose} onPasswordChanged={onPasswordChanged} />
       </ToastProvider>,
     );
 
