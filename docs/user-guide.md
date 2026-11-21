@@ -138,16 +138,7 @@ Màn hình quản trị chia thành 5 tab tải dữ liệu theo yêu cầu:
 
 ---
 
-## 8. Giao diện Streamlit kế thừa (`src/app.py`)
-
-Bản giao diện Streamlit cũ (`.\.venv\Scripts\streamlit.exe run src/app.py`) được giữ lại để đối chiếu báo cáo đồ án và **mặc định chạy ở chế độ chỉ đọc (Read-only)** nhằm bảo vệ phân quyền RBAC, ca trực và `audit_logs`.
-
-- Bạn vẫn có thể xem biểu đồ, danh sách bãi, lượt đỗ và giao dịch bình thường.
-- Nếu cần minh họa thao tác ghi trên bản Streamlit cục bộ, chạy trước biến môi trường `$env:ENABLE_LEGACY_STREAMLIT_WRITES = "1"`.
-
----
-
-## 9. Xử lý nhanh các tình huống thường gặp
+## 8. Xử lý nhanh các tình huống thường gặp
 
 | Tình huống | Nguyên nhân & Cách xử lý |
 | --- | --- |

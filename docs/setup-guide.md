@@ -38,15 +38,16 @@ npm run dev
 ```
 Truy cập `http://localhost:5173` (hoặc chạy `npm run build` để FastAPI phục vụ trực tiếp bản build tại `http://127.0.0.1:8000`).
 
-### Bước 4: Bản Streamlit kế thừa (chỉ đọc mặc định)
+### Chạy trong mạng LAN nội bộ
+Để các máy tính / điện thoại khác trong cùng mạng LAN truy cập quầy cổng POS:
 ```powershell
-.\.venv\Scripts\streamlit.exe run src/app.py
+# 1. Build bản SPA tối ưu vào frontend/dist
+Set-Location frontend; npm run build; Set-Location ..
+
+# 2. Mở FastAPI lắng nghe trên toàn mạng LAN (mở cổng 8000 trên Windows Firewall nếu cần)
+.\.venv\Scripts\uvicorn.exe src.api.main:app --host 0.0.0.0 --port 8000
 ```
-Nếu cần mở khóa ghi trên bản Streamlit phục vụ minh họa cục bộ:
-```powershell
-$env:ENABLE_LEGACY_STREAMLIT_WRITES = "1"
-.\.venv\Scripts\streamlit.exe run src/app.py
-```
+Các thiết bị cùng Wi-Fi/LAN truy cập `http://<IP-máy-chủ>:8000` (same-origin cho cả REST `/api/v1` lẫn WebSocket `/ws/live`).
 
 ## 3. Chạy bộ kiểm tra & kiểm thử
 ```powershell

@@ -5,7 +5,6 @@
 - **Backend:** Python 3.11+, FastAPI (`/api/v1/*` + alias `/api/*`), Uvicorn, Pydantic v2, `pydantic-settings`, `mysql-connector-python`.
 - **Frontend:** React 19, TypeScript (`strict: true`, `noUncheckedIndexedAccess`), Vite 8, Tailwind CSS v4, React Router, TanStack Query, Recharts, `qrcode.react`, `lucide-react`.
 - **Database:** TiDB Cloud Serverless / MySQL 8 (`dbptit` — 13 bảng nền + 5 bảng sản xuất: `taikhoan`, `refresh_tokens`, `ca_lam_viec`, `audit_logs`, `schema_migrations`).
-- **Legacy UI:** Streamlit + Pandas + Altair (`src/app.py`, chế độ chỉ đọc mặc định).
 - **QA & CI/CD:** `pytest`, `pytest-asyncio`, `pytest-cov`, `ruff`, `mypy`, `oxlint`, `vitest`, `@testing-library/react`, GitHub Actions.
 
 ## 2. Yêu cầu chức năng cốt lõi

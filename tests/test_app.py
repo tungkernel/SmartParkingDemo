@@ -533,7 +533,7 @@ class TestParkingService(unittest.TestCase):
         executed = [c.args[0] for c in cursor.execute.call_args_list]
         self.assertTrue(any("INSERT INTO thexe (maso, trangthai)" in sql for sql in executed))
 
-    def test_update_payment_status_not_found_and_html_builders(self) -> None:
+    def test_update_payment_status_not_found(self) -> None:
         with self.assertRaises(ValidationError):
             self.service.update_payment_status(1, "Không hợp lệ")
 
@@ -543,13 +543,10 @@ class TestParkingService(unittest.TestCase):
         with self.assertRaises(NotFoundError):
             self.service.update_payment_status(999, "Hoàn tiền")
 
-        ticket_html = self.service.build_ticket_html(1, "29A12345", "Xe máy", "Khu A-1", "001", "2026-11-19 08:00:00")
-        self.assertIn("PHIẾU GỬI XE", ticket_html)
-        receipt_html = self.service.build_receipt_html(1, "29A12345", "Vé ngày", "08:00", "10:00", 5000)
-        self.assertIn("5,000 VNĐ", receipt_html)
-
-    def test_seed_demo_data_removed(self) -> None:
+    def test_legacy_streamlit_helpers_removed(self) -> None:
         self.assertFalse(hasattr(self.service, "seed_demo_data"))
+        self.assertFalse(hasattr(self.service, "build_ticket_html"))
+        self.assertFalse(hasattr(self.service, "build_receipt_html"))
 
 
 if __name__ == "__main__":

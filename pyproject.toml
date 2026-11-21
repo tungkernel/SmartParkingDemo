@@ -19,11 +19,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-legacy = [
-    "streamlit>=1.40.0",
-    "pandas>=2.2.0",
-    "altair>=5.4.0",
-]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
@@ -48,11 +43,6 @@ markers = [
 
 [tool.coverage.run]
 source = ["src"]
-omit = [
-    "src/app.py",
-    "src/ui/styles.py",
-    "src/ui/icons.py",
-]
 
 [tool.coverage.report]
 show_missing = true
@@ -62,7 +52,6 @@ skip_empty = true
 target-version = "py311"
 line-length = 110
 src = ["src", "tests"]
-exclude = ["src/app.py", "src/ui/styles.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B"]
@@ -82,4 +71,3 @@ explicit_package_bases = true
 ignore_missing_imports = true
 warn_unused_ignores = true
 check_untyped_defs = true
-exclude = "(^src/app\\.py$|^src/ui/styles\\.py$)"

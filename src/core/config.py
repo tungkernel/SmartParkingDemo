@@ -63,10 +63,9 @@ class Settings(BaseSettings):
     vietqr_account_no: str = "0123456789"
     vietqr_account_name: str = "SMART PARKING PTIT"
 
-    # Real-time & Legacy flags
+    # Real-time WebSocket settings
     redis_url: Optional[str] = None
     ws_max_connections: int = Field(default=500, ge=10, le=10000)
-    enable_legacy_streamlit_writes: bool = False
 
     @property
     def cors_origins_list(self) -> list[str]:

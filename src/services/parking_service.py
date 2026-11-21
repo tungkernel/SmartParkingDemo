@@ -12,7 +12,6 @@ from services.domain.directory_service import DirectoryService
 from services.domain.gate_service import GateService
 from services.domain.infrastructure_service import InfrastructureService
 from services.domain.pass_service import PassService
-from ui.templates import build_receipt_html, build_ticket_html
 
 __all__ = [
     "AuditActor",
@@ -621,7 +620,3 @@ class ParkingService:
 
     def delete_vehicle(self, vehicle_id: int, actor: Optional[AuditActor] = None) -> None:
         self.directory.delete_vehicle(vehicle_id, actor=actor)
-
-    # Deprecated UI HTML template delegation for legacy Streamlit compatibility
-    build_ticket_html = staticmethod(build_ticket_html)
-    build_receipt_html = staticmethod(build_receipt_html)
