@@ -58,10 +58,12 @@ SmartParkingDemo/
 │       ├── pages/                # 6 trang nghiệp vụ lazy-loaded + LoginPage
 │       └── test/                 # Bộ kiểm thử Vitest + React Testing Library
 ├── tests/                        # Bộ kiểm thử Pytest (Unit, Security, RBAC, WebSocket)
-└── docs/                         # Tài liệu kỹ thuật, báo cáo đồ án & slide thuyết trình
+└── docs/                         # Tài liệu kỹ thuật, hướng dẫn cài đặt & sử dụng (user-guide.md)
 ```
 
-## 4. Hướng dẫn cài đặt và vận hành (Windows PowerShell)
+## 4. Hướng dẫn cài đặt và sử dụng (Windows PowerShell)
+
+> Xem thêm hướng dẫn thao tác chi tiết theo từng phân hệ và vai trò tại **[docs/user-guide.md](docs/user-guide.md)** và hướng dẫn cài đặt đầy đủ tại **[docs/setup-guide.md](docs/setup-guide.md)**.
 
 1. **Cấu hình môi trường:** Sao chép `.env.example` thành `.env` và điền thông tin TiDB Cloud / MySQL cùng `AUTH_SECRET_KEY`.
 2. **Cài đặt và chạy Backend FastAPI:**
