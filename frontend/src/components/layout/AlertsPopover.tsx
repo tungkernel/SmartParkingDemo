@@ -102,7 +102,6 @@ export function AlertsPopover({ alerts, canAccessAdmin }: AlertsPopoverProps) {
                     <AlertTriangle className="h-3.5 w-3.5" />
                     Xe gửi quá 24 giờ ({overdue.length})
                   </span>
-                  <span className="text-[10px] text-slate-400">Nhấn để mở POS</span>
                 </div>
                 <div className="space-y-1.5">
                   {overdue.slice(0, 5).map((t) => (
@@ -139,7 +138,6 @@ export function AlertsPopover({ alerts, canAccessAdmin }: AlertsPopoverProps) {
                     <CreditCard className="h-3.5 w-3.5" />
                     Vé tháng sắp hết hạn ({expiring.length})
                   </span>
-                  <span className="text-[10px] text-slate-400">Nhấn để gia hạn</span>
                 </div>
                 <div className="space-y-1.5">
                   {expiring.slice(0, 5).map((p) => (

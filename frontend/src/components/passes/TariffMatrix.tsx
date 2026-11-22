@@ -35,18 +35,10 @@ export function TariffMatrix({
     );
   }
 
-  const renderGroup = (
-    title: string,
-    subtitle: string,
-    badgeTone: 'amber' | 'violet',
-    items: Tariff[],
-  ) => (
+  const renderGroup = (title: string, badgeTone: 'amber' | 'violet', items: Tariff[]) => (
     <section className="card-surface rounded-2xl overflow-hidden flex flex-col min-h-[260px] max-h-[65vh] lg:max-h-full">
       <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 px-4 py-3">
-        <div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
-        </div>
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</h3>
         <StatusBadge tone={badgeTone} dot>
           {items.length} mức giá
         </StatusBadge>
@@ -126,18 +118,8 @@ export function TariffMatrix({
 
   return (
     <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 lg:grid-rows-1 gap-4 items-stretch">
-      {renderGroup(
-        'Biểu giá Vé ngày (Vãng lai)',
-        'Áp dụng tự động khi tính phí Check-out theo lượt đỗ',
-        'amber',
-        dailyTariffs,
-      )}
-      {renderGroup(
-        'Biểu giá Vé tháng (Định kỳ)',
-        'Áp dụng khi đăng ký mới hoặc gia hạn vé tháng',
-        'violet',
-        monthlyTariffs,
-      )}
+      {renderGroup('Biểu giá Vé ngày (Vãng lai)', 'amber', dailyTariffs)}
+      {renderGroup('Biểu giá Vé tháng (Định kỳ)', 'violet', monthlyTariffs)}
     </div>
   );
 }

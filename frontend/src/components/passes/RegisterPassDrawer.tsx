@@ -118,7 +118,6 @@ export function RegisterPassDrawer({
       open={open}
       onClose={onClose}
       title="Đăng ký vé tháng mới"
-      subtitle="Cấp thẻ RFID riêng & tự động ghi nhận giao dịch thu phí"
       titleIcon={
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft">
           <PlusCircle className="h-4 w-4" />

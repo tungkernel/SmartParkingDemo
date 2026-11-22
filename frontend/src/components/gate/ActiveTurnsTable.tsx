@@ -88,15 +88,9 @@ export function ActiveTurnsTable({
     <section className="card-surface rounded-2xl overflow-hidden flex-1 flex flex-col min-h-[340px] max-h-[66vh] xl:max-h-none">
       <div className="shrink-0 border-b border-slate-200/80 dark:border-slate-800 px-4 py-3 space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              Xe đang gửi trong bãi ({totalCount})
-            </h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Nhấn <kbd className="kbd-keycap">F3</kbd> hoặc <kbd className="kbd-keycap">/</kbd> để
-              tìm nhanh — <kbd className="kbd-keycap">Enter</kbd> khi còn 1 xe để Check-out
-            </p>
-          </div>
+          <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+            Xe đang gửi trong bãi ({totalCount})
+          </h2>
           <SearchInput
             inputRef={searchInputRef}
             containerClassName="w-full sm:w-72"

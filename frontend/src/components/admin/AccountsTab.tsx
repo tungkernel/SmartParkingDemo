@@ -310,7 +310,6 @@ export function AccountsTab() {
         onClose={() => setCreateOpen(false)}
         maxWidthClass="max-w-md"
         title="Tạo tài khoản nhân viên mới"
-        subtitle="Gắn tài khoản đăng nhập cho nhân sự chưa có quyền truy cập"
         titleIcon={
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft">
             <UserPlus className="h-4 w-4" />

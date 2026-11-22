@@ -62,11 +62,6 @@ export function TopHeader({
           <h1 className="text-sm sm:text-base font-extrabold tracking-tight text-slate-900 dark:text-slate-100 truncate">
             {activeNav?.title ?? 'Smart Parking PTIT'}
           </h1>
-          {activeNav?.subtitle && (
-            <p className="hidden md:block text-[11px] text-slate-500 dark:text-slate-400 truncate">
-              {activeNav.subtitle}
-            </p>
-          )}
         </div>
       </div>
 

@@ -111,7 +111,6 @@ export function CheckoutModal({
       open={Boolean(turn)}
       onClose={onClose}
       title={`Thanh toán & Check-out #${turn.id_luotdo}`}
-      subtitle="Nhấn Ctrl+Enter để xác nhận và in biên lai ngay"
       titleIcon={
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft">
           <LogOut className="h-4 w-4" />

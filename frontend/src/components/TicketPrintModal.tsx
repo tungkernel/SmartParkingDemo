@@ -48,7 +48,6 @@ export function TicketPrintModal({ doc, onClose }: TicketPrintModalProps) {
       rootId="print-modal-root"
       maxWidthClass="max-w-md"
       title={isTicket ? 'In phiếu gửi xe (80mm)' : 'In biên lai thanh toán (80mm)'}
-      subtitle="Bản xem trước khổ giấy in nhiệt 80mm chuẩn"
       titleIcon={
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft">
           <Printer className="h-4 w-4" />

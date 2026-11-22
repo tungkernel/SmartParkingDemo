@@ -345,14 +345,9 @@ export function OverviewPage({ user }: OverviewPageProps) {
       <section className="card-surface rounded-2xl overflow-hidden flex-1 min-h-[300px] max-h-[68vh] lg:max-h-none flex flex-col">
         <div className="shrink-0 border-b border-slate-200/80 dark:border-slate-800 px-4 py-3 space-y-2.5">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Sơ đồ ô đỗ theo khu vực ({groupedFloorplan.totalShown} ô)
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Nhấn vào từng ô để xem thông tin xe, chuyển tới Check-out hoặc bật/tắt bảo trì
-              </p>
-            </div>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              Sơ đồ ô đỗ theo khu vực ({groupedFloorplan.totalShown} ô)
+            </h2>
 
             <div className="flex flex-wrap items-center gap-2">
               {user.role === 'ADMIN' && (
@@ -764,7 +759,6 @@ export function OverviewPage({ user }: OverviewPageProps) {
           onClose={() => setAddModalOpen(false)}
           maxWidthClass="max-w-md"
           title="Thêm vị trí đỗ mới"
-          subtitle="Hệ thống tự đánh số thứ tự tiếp nối trong khu vực được chọn"
           titleIcon={
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft">
               <Plus className="h-4 w-4" />

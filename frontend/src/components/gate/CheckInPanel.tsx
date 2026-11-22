@@ -63,21 +63,9 @@ export function CheckInPanel({
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100/90 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800/60">
             <LogIn className="h-4 w-4" />
           </div>
-          <div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              Ghi nhận xe vào bãi
-            </h2>
-            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-              <kbd className="kbd-keycap">F2</kbd>
-              <span>Biển số</span>
-              <span>·</span>
-              <kbd className="kbd-keycap">1–3</kbd>
-              <span>Loại xe</span>
-              <span>·</span>
-              <kbd className="kbd-keycap">F3</kbd>
-              <span>Tìm xe ra</span>
-            </div>
-          </div>
+          <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+            Ghi nhận xe vào bãi
+          </h2>
         </div>
       </div>
 

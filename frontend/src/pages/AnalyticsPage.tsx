@@ -76,15 +76,14 @@ export function AnalyticsPage() {
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-3.5">
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-            Báo cáo Doanh thu & Lưu lượng
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Gộp đầy đủ lượt đỗ ngày và đăng ký/gia hạn vé tháng theo giờ Việt Nam (UTC+7)
-            {isFetching ? ' · Đang đồng bộ...' : ''}
-          </p>
-        </div>
+        <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
+          Báo cáo Doanh thu & Lưu lượng
+          {isFetching && (
+            <span className="ml-2 text-xs font-normal text-slate-500 dark:text-slate-400">
+              Đang đồng bộ...
+            </span>
+          )}
+        </h2>
         <div className="card-surface inline-flex rounded-xl p-1">
           {[7, 30, 90].map((d) => (
             <button
