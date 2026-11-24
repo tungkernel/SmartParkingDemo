@@ -556,12 +556,12 @@
     <section class="hero">
       <div class="container hero-grid">
         <div>
-          <span class="pill">Nhóm 10 · Môn Cơ sở dữ liệu · PTIT · v2.1</span>
+          <span class="pill">Nhóm 10 · Môn Cơ sở dữ liệu · PTIT · v2.2</span>
           <h1>Quản lý bãi đỗ xe thông minh trên nền <span>TiDB Cloud</span></h1>
           <p>
             Hệ thống Full-Stack <strong>FastAPI (`/api/v1` + WebSocket)</strong> và <strong>React 19 + TypeScript SPA</strong>
-            vận hành trực tiếp trên 16 bảng <strong>dbptit</strong> — hỗ trợ RBAC, đối soát ca trực thu ngân,
-            mã chuyển khoản VietQR EMVCo, in phiếu nhiệt 80mm và giao dịch khóa dòng ACID.
+            vận hành trực tiếp trên đúng <strong>13 bảng ERD `dbptit`</strong> — thiết kế gọn cho mô hình một quản lý duy nhất,
+            hỗ trợ ghi nhận nhân viên thực hiện (`idnv`), mã VietQR EMVCo, in phiếu nhiệt 80mm và giao dịch khóa dòng ACID.
           </p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="https://github.com/tungkernel/SmartParkingDemo" target="_blank" rel="noopener">
@@ -575,14 +575,15 @@
             <span class="tech-tag">FastAPI v1 + WebSocket</span>
             <span class="tech-tag">React 19 + TypeScript</span>
             <span class="tech-tag">TiDB Cloud / MySQL 8</span>
-            <span class="tech-tag">RBAC + Audit Logs</span>
+            <span class="tech-tag">13-Table ERD + ACID Locks</span>
+            <span class="tech-tag">1-Click Windows Launcher</span>
             <span class="tech-tag">Pytest + Vitest + CI</span>
           </div>
         </div>
 
         <div class="preview-card">
           <div class="preview-header">
-            <span class="preview-title">Kiến trúc & Quy mô v2.1</span>
+            <span class="preview-title">Kiến trúc & Quy mô v2.2</span>
             <span class="status-dot">dbptit TLS + UTC Ready</span>
           </div>
           <div class="mini-stats">
@@ -591,12 +592,12 @@
               <div class="mini-stat-lbl">React 19 SPA + Dark Mode</div>
             </div>
             <div class="mini-stat">
-              <div class="mini-stat-val">16+ bảng</div>
-              <div class="mini-stat-lbl">SQL dbptit + Migrations</div>
+              <div class="mini-stat-val">13 bảng</div>
+              <div class="mini-stat-lbl">Chuẩn ERD dbptit</div>
             </div>
             <div class="mini-stat">
-              <div class="mini-stat-val">3 vai trò</div>
-              <div class="mini-stat-lbl">ADMIN · ACCOUNTANT · OPERATOR</div>
+              <div class="mini-stat-val">1-Click</div>
+              <div class="mini-stat-lbl">Mo_SmartParking.bat</div>
             </div>
             <div class="mini-stat">
               <div class="mini-stat-val">ACID</div>
@@ -605,7 +606,7 @@
           </div>
           <div class="mini-list">
             <div class="mini-list-item"><span>Frontend SPA</span><strong>frontend/ (React 19 + Vite 8)</strong></div>
-            <div class="mini-list-item"><span>REST & WS API</span><strong>src/api/v1/ + ws.py</strong></div>
+            <div class="mini-list-item"><span>REST & WS API</span><strong>src/api/v1/ (7 routers) + ws.py</strong></div>
             <div class="mini-list-item"><span>Domain & Data</span><strong>src/services/domain/ + db_service.py</strong></div>
           </div>
         </div>
@@ -618,7 +619,7 @@
           <div class="section-kicker">Phân hệ nghiệp vụ</div>
           <h2 class="section-title">6 màn hình vận hành thời gian thực</h2>
           <p class="section-sub">
-            Đồng bộ WebSocket tức thời với TanStack Query, phân quyền tuyến đường React Router, phím tắt POS và in biên lai nhiệt 80mm.
+            Đồng bộ WebSocket tức thời với TanStack Query, Command Palette Ctrl+K, phím tắt POS và in biên lai nhiệt 80mm.
           </p>
         </div>
 
@@ -626,32 +627,32 @@
           <div class="card">
             <div class="card-num">01</div>
             <h3>Cổng Vào / Ra (Gate POS)</h3>
-            <p>Check-in/out nguyên tử chống deadlock, phím tắt F2/F3/1–3, thanh toán VietQR chuẩn EMVCo/NAPAS, xử lý mất thẻ và in phiếu QR 80mm.</p>
+            <p>Check-in/out nguyên tử chống deadlock, tự chọn nhân viên Bảo vệ / Thu ngân theo bãi, phím tắt F2/F3/1–3, thanh toán VietQR chuẩn EMVCo/NAPAS, xử lý mất thẻ và in phiếu QR 80mm.</p>
           </div>
           <div class="card">
             <div class="card-num">02</div>
             <h3>Tổng quan & Sơ đồ bãi</h3>
-            <p>KPI thời gian thực, thanh công suất bãi/khu vực, lưới ô đỗ lọc tại SQL, bật/tắt bảo trì và đối soát giải phóng ô đỗ & thẻ RFID mồ côi.</p>
+            <p>KPI thời gian thực, thanh công suất bãi/khu vực, lưới ô đỗ lọc tại SQL, bật/tắt bảo trì, thêm ô hàng loạt và đối soát giải phóng ô đỗ & thẻ RFID mồ côi.</p>
           </div>
           <div class="card">
             <div class="card-num">03</div>
             <h3>Vé tháng & Bảng giá</h3>
-            <p>Đăng ký, gia hạn nhiều tháng, cấp đổi thẻ RFID, hủy trước hạn và quản lý bảng giá kèm kiểm tra trùng lặp nguyên tử.</p>
+            <p>Đăng ký, gia hạn nhiều tháng kèm chọn nhân viên thu ngân, cấp đổi thẻ RFID, hủy trước hạn và quản lý bảng giá kèm kiểm tra trùng lặp nguyên tử.</p>
           </div>
           <div class="card">
             <div class="card-num">04</div>
-            <h3>Giao dịch & Ca trực</h3>
-            <p>Tra cứu phân trang lọc SQL, xuất CSV phía máy chủ, mở/chốt ca bàn giao quỹ tiền mặt – chuyển khoản – hoàn tiền minh bạch.</p>
+            <h3>Lịch sử Giao dịch</h3>
+            <p>Tra cứu phân trang lọc trực tiếp tại SQL theo ngày UTC+7, từ khóa, nhân viên thu ngân, phương thức thanh toán, cập nhật hoàn tiền và xuất CSV phía máy chủ.</p>
           </div>
           <div class="card">
             <div class="card-num">05</div>
             <h3>Phân tích Doanh thu</h3>
-            <p>Biểu đồ Recharts doanh thu & lưu lượng theo ngày (UTC+7), cơ cấu loại xe và bãi đỗ gộp đầy đủ cả vé ngày lẫn vé tháng.</p>
+            <p>Biểu đồ Recharts doanh thu & lưu lượng theo ngày (UTC+7), cơ cấu loại xe và bãi đỗ gộp đầy đủ cả hóa đơn lượt ngày lẫn vé tháng.</p>
           </div>
           <div class="card">
             <div class="card-num">06</div>
-            <h3>Quản trị RBAC & Kiểm toán</h3>
-            <p>Quản lý tài khoản RBAC thu hồi phiên tức thì, danh bạ nhân sự/khách/phương tiện (ẩn PII), kho thẻ RFID và nhật ký audit_logs.</p>
+            <h3>Quản trị Danh mục & Hạ tầng</h3>
+            <p>3 phân mục gọn gàng: Nhân sự & Danh bạ (nhân viên, khách hàng, phương tiện), Kho thẻ RFID và Hạ tầng Bãi đỗ / Khu vực.</p>
           </div>
         </div>
       </div>
@@ -661,15 +662,15 @@
       <div class="container">
         <div class="section-head">
           <div class="section-kicker">Cơ sở dữ liệu dbptit</div>
-          <h2 class="section-title">13 bảng nền SQL + 5 bảng vận hành sản xuất</h2>
+          <h2 class="section-title">13 bảng chuẩn ERD trên TiDB Cloud / MySQL 8</h2>
           <p class="section-sub">
-            Lược đồ chuẩn hóa trong <code>Dump20261118.sql</code> kết hợp <code>MigrationService</code> có phiên bản (<code>schema_migrations</code> + <code>GET_LOCK</code>), chống nhân bản JOIN bằng <code>ROW_NUMBER()</code>.
+            Lược đồ chuẩn hóa hoàn toàn trong <code>Dump20261118.sql</code>, lưu trữ UTC <code>+00:00</code>, chống nhân bản JOIN bằng <code>ROW_NUMBER()</code> và khóa dòng chống xung đột.
           </p>
         </div>
 
         <div class="grid-3">
           <div class="schema-group">
-            <h3>Hạ tầng & Biểu giá</h3>
+            <h3>Hạ tầng & Biểu giá (6)</h3>
             <div class="chip-list">
               <span class="db-chip">baidoxe</span>
               <span class="db-chip">khuvucdo</span>
@@ -680,7 +681,7 @@
             </div>
           </div>
           <div class="schema-group">
-            <h3>Con người, Xe & Thẻ</h3>
+            <h3>Con người, Xe & Thẻ (5)</h3>
             <div class="chip-list">
               <span class="db-chip">nhanvien</span>
               <span class="db-chip">khachhang</span>
@@ -690,15 +691,10 @@
             </div>
           </div>
           <div class="schema-group">
-            <h3>Vận hành, RBAC & Kiểm toán</h3>
+            <h3>Vận hành & Hóa đơn (2)</h3>
             <div class="chip-list">
               <span class="db-chip">luotdo</span>
               <span class="db-chip">thanhtoan</span>
-              <span class="db-chip">taikhoan</span>
-              <span class="db-chip">refresh_tokens</span>
-              <span class="db-chip">ca_lam_viec</span>
-              <span class="db-chip">audit_logs</span>
-              <span class="db-chip">schema_migrations</span>
             </div>
           </div>
         </div>
@@ -709,26 +705,26 @@
       <div class="container">
         <div class="section-head">
           <div class="section-kicker">Khởi chạy nhanh</div>
-          <h2 class="section-title">Khởi chạy hệ thống cục bộ với FastAPI &amp; React 19</h2>
+          <h2 class="section-title">Chạy 1-click trên Windows hoặc phát triển cục bộ</h2>
           <p class="section-sub">
             Hệ thống gồm FastAPI backend, React 19 SPA và cơ sở dữ liệu MySQL/TiDB Cloud (GitHub Pages chỉ phục vụ trang giới thiệu tĩnh này).
           </p>
         </div>
 
         <div class="code-box">
-<span class="cm"># Bước 1: Clone dự án và tạo cấu hình .env</span>
+<span class="cm"># Bước 1: Clone dự án, tạo .env và cài môi trường Python</span>
 git clone https://github.com/tungkernel/SmartParkingDemo.git
 cd SmartParkingDemo
 copy .env.example .env
-
-<span class="cm"># Bước 2: Cài đặt và khởi chạy Backend FastAPI (Windows PowerShell)</span>
 python -m venv .venv
 .\.venv\Scripts\pip.exe install -r requirements-dev.txt
-.\.venv\Scripts\uvicorn.exe src.api.main:app --reload --port 8000
 
-<span class="cm"># Bước 3: Khởi chạy Frontend React 19 SPA (terminal thứ 2)</span>
+<span class="cm"># Bước 2A: Nhấp đúp Mo_SmartParking.bat để tự mở server &amp; trình duyệt http://127.0.0.1:8000</span>
+<span class="cm"># (Tùy chọn) Nhấp đúp Tao_Shortcut_Desktop.bat để tạo lối tắt trên Desktop</span>
+
+<span class="cm"># Bước 2B: Hoặc chạy tách chế độ dev (Swagger API: http://127.0.0.1:8000/docs)</span>
+.\.venv\Scripts\uvicorn.exe src.api.main:app --reload --port 8000
 cd frontend &amp;&amp; npm install &amp;&amp; npm run dev
-<span class="cm"># Truy cập http://localhost:5173 (Swagger API: http://127.0.0.1:8000/docs)</span>
         </div>
       </div>
     </section>
@@ -762,23 +758,23 @@ cd frontend &amp;&amp; npm install &amp;&amp; npm run dev
         <div class="docs-list">
           <a class="doc-link" href="https://github.com/tungkernel/SmartParkingDemo/blob/main/README.md" target="_blank" rel="noopener">
             <strong>README.md</strong>
-            <span>Tổng quan dự án</span>
+            <span>Tổng quan dự án v2.2.0</span>
           </a>
           <a class="doc-link" href="https://github.com/tungkernel/SmartParkingDemo/blob/main/docs/architecture.md" target="_blank" rel="noopener">
             <strong>architecture.md</strong>
-            <span>Kiến trúc & Schema dbptit</span>
-          </a>
-          <a class="doc-link" href="https://github.com/tungkernel/SmartParkingDemo/blob/main/docs/SPEC.md" target="_blank" rel="noopener">
-            <strong>SPEC.md</strong>
-            <span>Đặc tả kỹ thuật</span>
+            <span>Kiến trúc &amp; Schema 13 bảng</span>
           </a>
           <a class="doc-link" href="https://github.com/tungkernel/SmartParkingDemo/blob/main/docs/setup-guide.md" target="_blank" rel="noopener">
             <strong>setup-guide.md</strong>
-            <span>Hướng dẫn cài đặt chi tiết</span>
+            <span>Hướng dẫn cài đặt &amp; 1-click</span>
           </a>
           <a class="doc-link" href="https://github.com/tungkernel/SmartParkingDemo/blob/main/docs/user-guide.md" target="_blank" rel="noopener">
             <strong>user-guide.md</strong>
-            <span>Hướng dẫn sử dụng theo vai trò</span>
+            <span>Hướng dẫn vận hành 6 phân hệ</span>
+          </a>
+          <a class="doc-link" href="https://github.com/tungkernel/SmartParkingDemo/blob/main/CHANGELOG.md" target="_blank" rel="noopener">
+            <strong>CHANGELOG.md</strong>
+            <span>Lịch sử thay đổi phiên bản</span>
           </a>
         </div>
       </div>

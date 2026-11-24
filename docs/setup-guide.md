@@ -1,14 +1,14 @@
-# Hướng dẫn cài đặt chi tiết (Setup Guide — v2.1)
+# Hướng dẫn cài đặt chi tiết (Setup Guide — v2.2.0)
 
 ## 1. Yêu cầu môi trường
 - **Python:** 3.11 trở lên (khuyến nghị 3.12 / 3.14).
 - **Node.js:** 20+ (khuyến nghị 24 LTS) và `npm`.
-- **Database:** TiDB Cloud Serverless hoặc MySQL 8.x (nạp sẵn lược đồ `Dump20261118.sql`).
+- **Database:** TiDB Cloud Serverless hoặc MySQL 8.x đã nạp sẵn lược đồ 13 bảng từ [`Dump20261118.sql`](../Dump20261118.sql).
 
-## 2. Cài đặt môi trường phát triển cục bộ (Windows PowerShell)
+## 2. Cấu hình biến môi trường (`.env`)
 
-### Bước 1: Tạo tệp cấu hình `.env`
-Sao chép `.env.example` sang `.env` và điền thông tin kết nối:
+Sao chép `.env.example` thành `.env` ở thư mục gốc và điền thông tin kết nối `dbptit`:
+
 ```env
 APP_ENV=development
 TIDB_HOST=gateway01.ap-northeast-1.prod.aws.tidbcloud.com
@@ -18,28 +18,42 @@ TIDB_USER=<username>
 TIDB_PASSWORD=<password>
 TIDB_POOL_SIZE=8
 TIDB_SSL_CA=
-AUTH_SECRET_KEY=<chuoi-bi-mat-ngau-nhien-toi-thieu-32-ky-tu>
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000
+
+# VietQR (tùy chọn cho quầy thu ngân)
+VIETQR_BANK_BIN=970422
+VIETQR_ACCOUNT_NO=0123456789
+VIETQR_ACCOUNT_NAME=SMART PARKING PTIT
 ```
 
-### Bước 2: Khởi động Backend FastAPI
+> Lưu ý: Không commit file `.env` lên Git.
+
+## 3. Cài đặt môi trường & Khởi chạy
+
+### Bước 1: Tạo virtual environment Python
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\pip.exe install -r requirements-dev.txt
-.\.venv\Scripts\uvicorn.exe src.api.main:app --reload --port 8000
 ```
-Khi khởi động, `MigrationService` tự động áp dụng các bản migration còn thiếu và `AuthService` khởi tạo các tài khoản mặc định (`admin`, `thungan`, `baove` — mật khẩu dev `123456` nếu bảng `taikhoan` đang trống).
 
-### Bước 3: Khởi động Frontend React SPA
+### Bước 2A: Chạy 1-click trên Windows (Khuyến nghị)
+- Nhấp đúp **`Mo_SmartParking.bat`** (hoặc chạy `.\Mo_SmartParking.bat` trong terminal).
+- Script [`scripts/launch_app.py`](../scripts/launch_app.py) sẽ tự kiểm tra xem cổng `8000` đã chạy Smart Parking chưa; nếu `frontend/dist/` chưa tồn tại thì tự chạy `npm install` và `npm run build`, sau đó bật FastAPI tại `http://127.0.0.1:8000` và mở trình duyệt mặc định.
+- Tham số hỗ trợ khi chạy qua terminal: `.\Mo_SmartParking.bat --port 8001 --no-browser` hoặc `--host 0.0.0.0`.
+- Để ghim biểu tượng mở nhanh ngoài màn hình nền, chạy **`Tao_Shortcut_Desktop.bat`**.
+
+### Bước 2B: Chạy tách Backend & Frontend khi phát triển (Hot Reload)
 ```powershell
+# Terminal 1: Backend FastAPI (Swagger API tại http://127.0.0.1:8000/docs)
+.\.venv\Scripts\uvicorn.exe src.api.main:app --reload --port 8000
+
+# Terminal 2: Frontend Vite dev server (http://localhost:5173)
 Set-Location frontend
 npm install
 npm run dev
 ```
-Truy cập `http://localhost:5173` (hoặc chạy `npm run build` để FastAPI phục vụ trực tiếp bản build tại `http://127.0.0.1:8000`).
 
-### Chạy trong mạng LAN nội bộ
-Để các máy tính / điện thoại khác trong cùng mạng LAN truy cập quầy cổng POS:
+### Bước 2C: Chia sẻ trong mạng LAN nội bộ
 ```powershell
 # 1. Build bản SPA tối ưu vào frontend/dist
 Set-Location frontend; npm run build; Set-Location ..
@@ -49,15 +63,17 @@ Set-Location frontend; npm run build; Set-Location ..
 ```
 Các thiết bị cùng Wi-Fi/LAN truy cập `http://<IP-máy-chủ>:8000` (same-origin cho cả REST `/api/v1` lẫn WebSocket `/ws/live`).
 
-## 3. Chạy bộ kiểm tra & kiểm thử
+## 4. Bộ lệnh kiểm tra chất lượng mã & kiểm thử
+
 ```powershell
 # Backend
-.\.venv\Scripts\python.exe -m ruff check src tests
-.\.venv\Scripts\python.exe -m mypy src
-.\.venv\Scripts\python.exe -m pytest tests --cov=src -v
+.\.venv\Scripts\python.exe -m ruff check src tests scripts
+.\.venv\Scripts\python.exe -m mypy src scripts
+.\.venv\Scripts\python.exe -m pytest tests -m "not integration" --cov=src --cov-report=term-missing --cov-fail-under=80 -v
 
 # Frontend
 Set-Location frontend
+npm run format:check
 npm run lint
 npm run typecheck
 npm run test

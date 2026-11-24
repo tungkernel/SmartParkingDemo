@@ -1,140 +1,118 @@
-# Hướng dẫn sử dụng Smart Parking System (v2.1)
+# Hướng dẫn sử dụng Smart Parking System (v2.2.0)
 
-Tài liệu này hướng dẫn chi tiết cách vận hành toàn bộ 6 phân hệ trên giao diện **React 19 SPA** của hệ thống quản lý bãi đỗ xe thông minh (**Smart Parking PTIT**), phân tách rõ thao tác theo từng vai trò (`ADMIN`, `ACCOUNTANT`, `OPERATOR`).
+Tài liệu này hướng dẫn chi tiết cách vận hành 6 phân hệ trên giao diện **React 19 SPA** của hệ thống **Smart Parking PTIT** theo mô hình quản lý tập trung một người vận hành, không yêu cầu đăng nhập.
 
-> Nếu bạn chưa khởi chạy hệ thống trên máy, hãy xem trước [docs/setup-guide.md](setup-guide.md).
+> Nếu bạn chưa khởi chạy hệ thống trên máy, xem trước [docs/setup-guide.md](setup-guide.md) hoặc nhấp đúp `Mo_SmartParking.bat` ở thư mục gốc.
 
 ---
 
-## 1. Đăng nhập, Phân quyền & Bảo mật tài khoản
+## 1. Thanh điều hướng & Công cụ chung
 
-### 1.1. Tài khoản mặc định (môi trường phát triển)
-Khi khởi động lần đầu với bảng `taikhoan` trống ở môi trường `development`, hệ thống tự khởi tạo 3 tài khoản mẫu với mật khẩu ban đầu `123456`:
-
-| Tên đăng nhập | Vai trò | Phạm vi & Quyền hạn chính |
-| --- | --- | --- |
-| `admin` | **ADMIN** | Toàn quyền hệ thống: quản lý tài khoản, hạ tầng bãi/khu/ô đỗ, đối soát ô/thẻ mồ côi, bảng giá, vé tháng, giao dịch, phân tích doanh thu và xem `audit_logs`. |
-| `thungan` | **ACCOUNTANT** | Nghiệp vụ tài chính & khách hàng: vận hành cổng, đăng ký/gia hạn/hủy vé tháng, chỉnh sửa bảng giá, cập nhật trạng thái hoàn tiền, xuất báo cáo CSV máy chủ, xem phân tích doanh thu và nhật ký kiểm toán. |
-| `baove` | **OPERATOR** | Vận hành trực tiếp tại cổng: check-in, check-out, chuyển ô đỗ, hủy lượt nhập nhầm, bật/tắt bảo trì ô đỗ, đăng ký/gia hạn vé tháng, mở/chốt ca của chính mình. Phạm vi dữ liệu giới hạn trong **bãi đỗ được phân công** và tự động **che SĐT/CCCD**. |
-
-### 1.2. Đổi mật khẩu & Quản lý phiên
-- Các tài khoản khởi tạo mặc định hiển thị thanh cảnh báo màu vàng ở đầu màn hình. Nhấn **Đổi mật khẩu ngay** (hoặc nút **Đổi mật khẩu** ở cuối thanh điều hướng bên trái / menu di động).
-- Nhập mật khẩu hiện tại và mật khẩu mới (**tối thiểu 8 ký tự**). Sau khi lưu thành công, hệ thống tự động thu hồi toàn bộ phiên đăng nhập cũ (`token_version`) và chuyển về màn hình `/login` để đăng nhập lại.
-- Phiên đăng nhập tự động gia hạn ngầm qua refresh token rotation và tự đồng bộ đăng xuất giữa các tab trình duyệt cùng mở ứng dụng.
-
-### 1.3. Thanh công cụ chung (Header)
-- **Trạng thái Real-time:** Hiển thị `Đồng bộ Real-time` (màu xanh) khi WebSocket `/ws/live` đang kết nối; mọi thao tác check-in, check-out, đổi ô, đăng ký vé tháng từ máy trạm khác sẽ tự cập nhật mà không cần tải lại trang.
-- **Giao diện Sáng / Tối:** Biểu tượng Mặt trăng / Mặt trời chuyển đổi Dark Mode và lưu tùy chọn trên trình duyệt.
-- **Chuông Cảnh báo vận hành:** Tập hợp 3 nhóm cảnh báo theo thời gian thực:
+- **Truy cập trực tiếp:** Mở `http://127.0.0.1:8000` (hoặc `http://localhost:5173` khi dev) sẽ vào thẳng màn hình **Cổng Vào / Ra (`/gate`)**.
+- **Bảng điều khiển nhanh (`Ctrl + K` / `Cmd + K`):** Mở Command Palette để nhảy nhanh giữa 6 trang, tìm kiếm hoặc làm mới toàn bộ dữ liệu.
+- **Trạng thái Real-time:** Chỉ báo `Đồng bộ Real-time` khi WebSocket `/ws/live` đang kết nối; mọi thao tác check-in, check-out, chuyển ô, đăng ký/gia hạn vé tháng từ tab hoặc máy LAN khác sẽ tự cập nhật tức thời.
+- **Giao diện Sáng / Tối:** Nút chuyển Light / Dark Mode lưu lựa chọn trên `localStorage`.
+- **Chuông Cảnh báo vận hành:** Tổng hợp 3 nhóm cảnh báo thời gian thực:
   1. Xe gửi quá **24 giờ** chưa ra bãi.
   2. Vé tháng sắp hết hạn trong vòng **7 ngày**.
   3. Danh sách thẻ RFID đang ở trạng thái **Mất / Hỏng**.
-- **Làm mới:** Làm mới lại toàn bộ dữ liệu đang hiển thị trên trang hiện tại.
+- **Làm mới:** Nút làm mới cưỡng bức đồng bộ lại mọi truy vấn React Query đang hiển thị.
 
 ---
 
 ## 2. Cổng Vào / Ra — Gate POS (`/gate`)
 
-Đây là màn hình làm việc chính của nhân viên trực cổng (`ADMIN`, `ACCOUNTANT`, `OPERATOR`).
-
 ### 2.1. Phím tắt thao tác nhanh
 | Phím tắt | Tác dụng |
 | --- | --- |
-| `F2` | Focus ngay vào ô nhập **Biển số xe** và bôi đen nội dung cũ |
+| `F2` | Focus vào ô **Biển số xe** và bôi đen nội dung cũ |
 | `1` / `2` / `3` | Chọn nhanh loại phương tiện tương ứng (khi con trỏ không nằm trong ô nhập liệu) |
-| `F3` hoặc `/` | Focus nhanh vào ô **Tìm kiếm xe đang gửi** |
+| `F3` hoặc `/` | Focus vào ô **Tìm kiếm xe đang gửi** |
+| `Ctrl + Enter` / `Cmd + Enter` | Xác nhận nhanh trong hộp thoại Check-out |
 | `Esc` | Đóng hộp thoại (Check-out, Chuyển ô, Xác nhận hủy, In phiếu) |
 
 ### 2.2. Ghi nhận xe vào bãi (Check-in)
-1. Nhấn `F2` và nhập **Biển số xe** (tối đa 15 ký tự, ví dụ `29A-123.45` hoặc `30K12345`).
-2. **Trường hợp xe có vé tháng còn hạn:** Hệ thống tự động nhận diện biển số, hiển thị huy hiệu xanh *Nhận diện vé tháng — tự chọn thẻ #...*, đồng thời tự chọn đúng thẻ RFID gắn với vé tháng và loại xe của chủ vé.
-3. **Trường hợp khách vãng lai:** Chọn **Loại phương tiện**, **Bãi đỗ**, **Vị trí trống** và **Thẻ RFID sẵn sàng** (dropdown tự lọc bỏ thẻ vé tháng của khách khác để tránh cấp nhầm).
-4. Nhấn **Xác nhận Check-in & In phiếu QR**. Hệ thống khóa vị trí + thẻ nguyên tử trong cùng transaction và mở ngay hộp thoại in phiếu gửi xe khổ **80mm** kèm mã QR.
+1. Nhấn `F2` và nhập **Biển số xe** (ví dụ `29A-123.45` hoặc `30K12345`).
+2. **Xe vé tháng còn hạn:** Hệ thống tự nhận diện biển số, hiển thị huy hiệu *Nhận diện vé tháng* và tự chọn đúng thẻ RFID gắn với vé tháng cùng loại xe tương ứng.
+3. **Khách vãng lai:** Chọn **Loại phương tiện**, **Bãi đỗ**, **Vị trí trống** (hoặc chọn trực quan qua Sơ đồ nhanh `QuickSlotPicker`) và **Thẻ RFID sẵn sàng** (tự loại bỏ thẻ vé tháng của khách khác).
+4. **Nhân viên trực (Check-in):** Dropdown tự động chọn **Bảo vệ** phụ trách bãi đỗ vừa chọn (ưu tiên khớp `idbdx` + chức vụ *Bảo vệ*, fallback về *Quản lý*). Bạn có thể đổi sang nhân viên khác trước khi bấm xác nhận; lựa chọn sẽ được lưu vào `luotdo.idnv`.
+5. Nhấn **Xác nhận Check-in & In phiếu QR** để khóa ô + thẻ nguyên tử trong transaction và mở hộp thoại in phiếu gửi xe khổ **80mm**.
 
 ### 2.3. Ghi nhận xe ra bãi & Thanh toán (Check-out)
-1. Nhấn `F3`, gõ biển số, mã thẻ RFID hoặc tên chủ xe để lọc bảng **Xe đang gửi trong bãi**.
-2. Nhấn **Check-out** trên dòng tương ứng để mở hộp thoại tính phí:
-   - **Vé ngày:** Tính phí theo chu kỳ 24 giờ (`đơn giá ngày × số ngày làm tròn lên`, tối thiểu 1 ngày).
-   - **Vé tháng còn hiệu lực:** Hệ thống tự nhận diện và tính phí `0 đ`.
-   - **Vé tháng đã hết hạn hoặc bị hủy khi xe đang trong bãi:** Hệ thống tự động chuyển sang đơn giá **vé ngày** tương ứng loại xe với nhãn `Vé ngày (Vé tháng hết hạn)`.
-3. Chọn phương thức thanh toán:
-   - **Tiền mặt:** Thu tiền mặt trực tiếp tại quầy.
-   - **Chuyển khoản:** Khi tổng tiền `> 0 đ`, hộp thoại tự hiển thị mã **VietQR chuẩn EMVCo/NAPAS** kèm số tiền và nội dung chuyển khoản để khách quét bằng ứng dụng ngân hàng.
-4. **Xử lý mất thẻ RFID (nếu có):**
-   - Tích chọn **Khách báo mất thẻ RFID**.
-   - Kiểm tra hoặc điều chỉnh **Phụ phí mất thẻ** (mặc định `50.000 đ`).
-   - Nếu là xe **vé tháng còn hạn**, có thể chọn ngay một thẻ trống ở mục **Cấp đổi thẻ mới cho vé tháng** để hệ thống tự chuyển quyền sở hữu sang thẻ mới và khóa thẻ cũ thành *Mất / Hỏng*.
-5. Nhấn **Xác nhận Check-out & In biên lai** để hoàn tất giao dịch, giải phóng ô đỗ/thẻ và in biên lai 80mm.
+1. Nhấn `F3` hoặc `/`, nhập biển số, mã thẻ RFID, vị trí hoặc tên chủ xe để lọc bảng **Xe đang gửi trong bãi** (hỗ trợ lọc nhanh theo *Tất cả / Vé ngày / Vé tháng / Quá 24h*).
+2. Nhấn **Check-out** trên dòng xe tương ứng:
+   - **Vé ngày:** Tính theo chu kỳ 24 giờ (`đơn giá ngày × số ngày làm tròn lên`, tối thiểu 1 ngày).
+   - **Vé tháng còn hiệu lực:** Hệ thống tự nhận diện và tính phí gửi xe `0 đ`.
+   - **Vé tháng đã hết hạn / bị hủy khi xe đang trong bãi:** Tự động chuyển sang đơn giá **vé ngày** tương ứng loại xe.
+3. Kiểm tra **Nhân viên thu ngân:** Mặc định tự chọn **Thu ngân** phụ trách bãi đỗ của lượt xe, cho phép chọn lại trước khi lưu vào `thanhtoan.idnv`.
+4. Chọn phương thức thanh toán:
+   - **Tiền mặt:** Hỗ trợ nút mệnh giá nhanh và tự tính tiền thừa trả khách.
+   - **Chuyển khoản:** Khi tổng tiền `> 0 đ`, hiển thị mã **VietQR chuẩn EMVCo/NAPAS** kèm số tiền và nội dung chuyển khoản để khách quét.
+5. **Xử lý mất thẻ RFID (nếu có):** Tích chọn **Khách báo mất thẻ**, điều chỉnh phụ phí mất thẻ (mặc định `50.000 đ`); nếu là xe vé tháng còn hạn, có thể chọn ngay thẻ trống ở mục cấp đổi để chuyển quyền sở hữu sang thẻ mới và khóa thẻ cũ thành *Mất / Hỏng*.
+6. Nhấn **Xác nhận Check-out & In biên lai** (hoặc `Ctrl + Enter`) để hoàn tất, giải phóng ô/thẻ và in biên lai 80mm.
 
-### 2.4. Chuyển vị trí đỗ & Hủy lượt nhập nhầm
-- **Chuyển ô đỗ** (`ADMIN`, `OPERATOR`): Nhấn nút chuyển vị trí trên dòng xe đang gửi -> chọn ô đỗ trống mới -> xác nhận. Hai ô cũ/mới được hoán đổi nguyên tử.
-- **Hủy lượt xe** (`ADMIN`, `OPERATOR`): Dùng khi nhập nhầm biển số hoặc xe quay đầu ngay lúc vừa check-in (chỉ hủy được lượt chưa thanh toán). Hệ thống xóa lượt và trả ô đỗ cùng thẻ RFID về trạng thái trống.
-- **In lại phiếu:** Nhấn biểu tượng máy in trên dòng xe đang gửi để mở lại phiếu gửi xe bất kỳ lúc nào.
+### 2.4. Chuyển vị trí, Hủy lượt & In lại phiếu
+- **Chuyển ô đỗ:** Đổi sang ô trống khác (hoán đổi trạng thái 2 ô nguyên tử trong cùng transaction).
+- **Hủy lượt xe:** Dùng khi nhập sai biển số hoặc xe quay đầu ngay lúc vừa check-in (chỉ hủy lượt chưa thanh toán); trả ô đỗ và thẻ RFID về trạng thái trống.
+- **In lại phiếu:** Nhấn biểu tượng máy in trên dòng xe đang gửi để xem lại phiếu 80mm.
 
 ---
 
 ## 3. Tổng quan & Sơ đồ bãi (`/overview`)
 
-- **Thẻ KPI:** Hiển thị tổng số ô, số chỗ trống, đang đỗ, lượt hoạt động, doanh thu toàn thời gian/hôm nay và số vé tháng còn hiệu lực (`OPERATOR` xem theo bãi được phân công).
+- **Thẻ KPI:** Tổng số ô, chỗ trống, đang đỗ, lượt hoạt động, doanh thu toàn thời gian/hôm nay và số vé tháng còn hiệu lực.
 - **Thanh công suất:** Tỷ lệ lấp đầy trực quan theo từng bãi đỗ và từng khu vực.
 - **Sơ đồ ô đỗ trực tiếp:**
-  - Lọc nhanh theo bãi đỗ, khu vực, trạng thái (`Tất cả` / `Trống` / `Đang đỗ` / `Bảo trì`) hoặc tìm theo biển số.
-  - Nhấn vào bất kỳ ô nào để xem chi tiết: nếu ô đang có xe sẽ hiện biển số, loại xe và giờ vào; nếu ô trống (`ADMIN`, `OPERATOR`) có thể nhấn **Khóa bảo trì** hoặc **Mở lại hoạt động** (khi ô đang bảo trì).
-- **Thao tác quản trị hạ tầng trên sơ đồ (`ADMIN`):**
-  - **Thêm ô đỗ hàng loạt:** Chọn khu vực và số lượng (`1–50` ô) để sinh số thứ tự nối tiếp tự động.
-  - **Đối soát trạng thái:** Tự động phát hiện và giải phóng các ô đỗ hoặc thẻ RFID bị kẹt trạng thái *Đang dùng* dù không còn lượt đỗ mở.
+  - Lọc tại SQL theo bãi đỗ, khu vực, trạng thái (`Tất cả` / `Trống` / `Đang đỗ` / `Bảo trì`) hoặc biển số.
+  - Nhấn vào từng ô để xem xe đang đỗ (biển số, loại xe, giờ vào), hoặc bật/tắt **Bảo trì** đối với ô trống / ô đang bảo trì.
+- **Công cụ hạ tầng trên sơ đồ:**
+  - **Thêm ô đỗ hàng loạt:** Chọn khu vực và số lượng (`1–50` ô) để đánh số thứ tự nối tiếp tự động.
+  - **Đối soát trạng thái:** Tự phát hiện và giải phóng các ô đỗ hoặc thẻ RFID bị kẹt trạng thái *Đang dùng* nhưng không còn lượt gửi mở.
 
 ---
 
 ## 4. Vé tháng & Bảng giá (`/passes`)
 
-### 4.1. Đăng ký vé tháng mới (`ADMIN`, `ACCOUNTANT`, `OPERATOR`)
-1. Điền thông tin khách hàng ở cột trái: **Họ tên**, **Số điện thoại**, **CCCD**, **Đối tượng khách hàng** (Sinh viên / Cán bộ, giảng viên...).
-2. Nhập **Biển số xe**, chọn **Loại phương tiện**, **Thẻ RFID trống**, **Số tháng đăng ký** (`1–12` tháng) và **Phương thức thanh toán**.
-3. Kiểm tra thành tiền tạm tính theo biểu giá vé tháng tương ứng rồi nhấn **Đăng ký vé tháng**. Hệ thống tự lưu hồ sơ khách hàng/phương tiện, tạo vé tháng, ghi nhận khoản thu vào `thanhtoan` và mở biên lai in.
+### 4.1. Đăng ký vé tháng mới
+1. Nhấn **Đăng ký vé tháng mới** để mở ngăn kéo nhập liệu.
+2. Điền thông tin khách hàng (**Họ tên**, **Số điện thoại**, **CCCD**, **Đối tượng khách hàng**), **Biển số xe**, **Loại phương tiện**, **Thẻ RFID trống**, **Số tháng đăng ký** (`1–12` tháng) và **Phương thức thanh toán**.
+3. Kiểm tra **Nhân viên thu ngân** (mặc định chọn *Thu ngân* khớp bãi đỗ ứng với loại xe, có thể đổi tay) -> nhấn **Đăng ký vé tháng** để ghi nhận đồng thời khách hàng, xe, vé tháng, hóa đơn `thanhtoan` (`idnv` đầy đủ) và mở biên lai in.
 
 ### 4.2. Tra cứu, Gia hạn & Hủy vé tháng
-- Lọc danh sách vé theo trạng thái (`Tất cả` / `Còn hạn` / `Hết hạn`) hoặc tìm theo tên khách, biển số, mã thẻ, SĐT.
-- **Gia hạn:** Nhấn nút **Gia hạn** trên vé -> chọn số tháng (`1, 2, 3, 6, 12`) và phương thức thanh toán. Ngày hết hạn mới được tính cộng dồn từ `max(ngày hết hạn hiện tại, ngày hôm nay)` (mỗi tháng 30 ngày).
-- **Hủy vé trước hạn (`ADMIN`, `ACCOUNTANT`):** Nhấn biểu tượng thùng rác và xác nhận. Vé sẽ chuyển sang hết hạn ngay lập tức và giải phóng thẻ RFID nếu xe không đang gửi trong bãi.
+- Lọc theo trạng thái (`Tất cả` / `Còn hạn` / `Hết hạn`) hoặc tìm theo tên, SĐT, biển số, mã thẻ.
+- **Gia hạn:** Chọn số tháng (`1, 2, 3, 6, 12`), phương thức thanh toán (kèm QR VietQR nếu chọn Chuyển khoản) và **Thu ngân** thực hiện; ngày hết hạn mới cộng dồn từ `max(ngày hết hạn hiện tại, hôm nay)` (mỗi tháng 30 ngày).
+- **Hủy vé trước hạn:** Chuyển vé sang hết hạn ngay lập tức và giải phóng thẻ RFID nếu xe không đang gửi trong bãi.
 
-### 4.3. Quản lý bảng giá (`ADMIN`, `ACCOUNTANT`)
-- Bảng giá phía dưới liệt kê toàn bộ mức giá vé ngày và vé tháng theo loại xe và đối tượng khách hàng.
-- Nhấn **Sửa giá** ở từng dòng để cập nhật đơn giá mới (mọi thay đổi được ghi lại giá cũ/mới trong `audit_logs`).
-
----
-
-## 5. Giao dịch & Ca trực (`/transactions`)
-
-### 5.1. Tab Lịch sử giao dịch
-- Lọc giao dịch theo **Từ ngày**, **Đến ngày** (chuẩn theo ngày kinh doanh Việt Nam UTC+7) và từ khóa (biển số, mã thẻ, thu ngân, mã giao dịch).
-- Nhấn biểu tượng máy in ở cuối mỗi dòng để in lại biên lai giao dịch.
-- **Xuất CSV:** Nhấn **Xuất CSV** để tải báo cáo định dạng UTF-8 BOM mở trực tiếp trên Excel (`ADMIN`/`ACCOUNTANT` tải luồng xuất trực tiếp từ máy chủ lên tới 2.000 dòng theo bộ lọc; `OPERATOR` xuất danh sách giao dịch trong phạm vi của mình).
-- **Cập nhật trạng thái / Hoàn tiền (`ADMIN`, `ACCOUNTANT`):** Đổi trạng thái giao dịch giữa `Thành công`, `Hoàn tiền` và `Thất bại`. Khoản `Hoàn tiền` sẽ tự động được tách riêng khỏi tiền mặt thu thực tế khi đối soát ca.
-
-### 5.2. Tab Ca làm việc & Đối soát bàn giao quỹ
-1. **Mở ca:** Đầu ca trực, nhập **Tiền quỹ đầu ca** (tiền lẻ trả khách) và ghi chú (nếu có) -> nhấn **Mở ca làm việc**. Mỗi nhân viên chỉ được mở 1 ca tại một thời điểm.
-2. **Theo dõi trong ca:** Hệ thống hiển thị trực tiếp số giao dịch thành công, tổng **Tiền mặt thu trong ca**, **Chuyển khoản**, **Hoàn tiền** và **Tiền mặt kỳ vọng bàn giao** (`Quỹ đầu ca + Tiền mặt thu`).
-3. **Chốt ca:** Cuối ca, kiểm đếm két và nhập **Tiền mặt thực tế bàn giao** (ô nhập được giữ nguyên không bị ghi đè khi WebSocket có giao dịch mới), thêm ghi chú bàn giao nếu chênh lệch -> nhấn **Chốt ca**. Hệ thống lưu lịch sử ca và tính ngay số tiền thừa/thiếu.
+### 4.3. Quản lý bảng giá (`?tab=tariffs`)
+- Hiển thị toàn bộ ma trận đơn giá vé ngày và vé tháng theo loại xe và đối tượng khách hàng; nhấn **Sửa giá** trên từng dòng để cập nhật đơn giá mới.
 
 ---
 
-## 6. Phân tích Doanh thu (`/analytics` — `ADMIN`, `ACCOUNTANT`)
+## 5. Lịch sử Giao dịch (`/transactions`)
+
+- Lọc kết hợp trực tiếp tại SQL theo:
+  - **Khoảng ngày kinh doanh** (chọn tay Từ ngày / Đến ngày hoặc preset `Hôm nay`, `7 ngày`, `30 ngày`, `Tháng này` theo múi giờ Việt Nam UTC+7).
+  - **Từ khóa** (biển số, mã thẻ, tên nhân viên, mã hóa đơn).
+  - **Nhân viên thu ngân (`employee_id`)**.
+  - **Phương thức thanh toán (`Tiền mặt` / `Chuyển khoản`)**.
+- **Cập nhật trạng thái:** Chuyển trạng thái hóa đơn giữa `Thành công`, `Hoàn tiền` và `Thất bại`.
+- **In lại biên lai & Xuất CSV:** In lại hóa đơn khổ 80mm hoặc nhấn **Xuất CSV** để tải báo cáo UTF-8 BOM từ server theo đúng bộ lọc đang áp dụng.
+
+---
+
+## 6. Phân tích Doanh thu (`/analytics`)
 
 - Chọn khoảng thống kê: **7 ngày**, **14 ngày**, **30 ngày** hoặc **90 ngày** gần nhất.
-- Xem tổng quan doanh thu vé tháng (tổng thu tích lũy và doanh thu tháng hiện tại), biểu đồ doanh thu & số lượt theo từng ngày (UTC+7), cùng bảng/biểu đồ tỷ trọng theo **Loại phương tiện** và **Bãi đỗ** (gộp đầy đủ cả lượt gửi ngày và đăng ký/gia hạn vé tháng).
+- Theo dõi doanh thu vé tháng tích lũy/trong tháng, biểu đồ doanh thu & lưu lượng theo ngày (UTC+7), và tỷ trọng theo **Loại phương tiện** / **Bãi đỗ** (gộp đầy đủ cả hóa đơn lượt ngày và hóa đơn vé tháng).
 
 ---
 
-## 7. Quản trị Hệ thống (`/admin/*` — `ADMIN`, `ACCOUNTANT`)
+## 7. Quản trị Danh mục & Hạ tầng (`/admin/*`)
 
-Màn hình quản trị chia thành 5 tab tải dữ liệu theo yêu cầu:
-
-1. **Tài khoản (`ADMIN`):** Tạo tài khoản gắn với nhân viên chưa có tài khoản, đổi vai trò (`ADMIN` / `ACCOUNTANT` / `OPERATOR`), khóa/mở khóa tài khoản (hệ thống chặn khóa hoặc hạ quyền quản trị viên cuối cùng) và đặt lại mật khẩu.
-2. **Nhân sự & Khách hàng:** Tra cứu danh sách nhân viên, khách hàng vé tháng, lịch sử khách vãng lai và danh bạ phương tiện.
-3. **Kho thẻ RFID:** Theo dõi toàn bộ thẻ (đang gắn xe nào trong bãi hoặc gắn vé tháng nào), phát hành mã thẻ mới (`ADMIN`, `OPERATOR`) và chuyển trạng thái `Sẵn sàng` / `Mất - Hỏng`.
-4. **Hạ tầng bãi & khu vực (`ADMIN`):** Tạo mới bãi đỗ xe và thêm khu vực đỗ cho từng bãi.
-5. **Nhật ký kiểm toán (`audit_logs`):** Tra cứu vết toàn bộ thao tác quan trọng (đăng nhập, check-in/out, hoàn tiền, đổi giá, mở/chốt ca, sửa tài khoản) kèm tài khoản thực hiện, địa chỉ IP và chi tiết JSON; hỗ trợ lọc theo hành động, bảng dữ liệu và username.
+Màn hình quản trị gồm **3 tab** tải dữ liệu theo yêu cầu:
+1. **Nhân sự & Danh bạ (`/admin/people`):** Thêm/sửa/xóa nhân viên (`nhanvien`), sửa thông tin khách hàng (`khachhang`), tra cứu lịch sử khách vãng lai và danh bạ phương tiện (`phuongtien`).
+2. **Kho thẻ RFID (`/admin/cards`):** Phát hành thẻ mới, theo dõi thẻ đang gắn lượt xe nào hoặc vé tháng nào, chuyển trạng thái `Sẵn sàng` / `Mất - Hỏng`.
+3. **Hạ tầng bãi/khu (`/admin/infrastructure`):** Tạo mới bãi đỗ xe (`baidoxe`) và thêm khu vực đỗ (`khuvucdo`) cho từng bãi.
 
 ---
 
@@ -142,9 +120,8 @@ Màn hình quản trị chia thành 5 tab tải dữ liệu theo yêu cầu:
 
 | Tình huống | Nguyên nhân & Cách xử lý |
 | --- | --- |
-| Xe vé tháng vào bãi nhưng không thấy thẻ trong dropdown | Đảm bảo đã gõ đúng biển số đã đăng ký vé tháng (hệ thống tự khớp khi nhập biển số) và thẻ đó không đang bị kẹt ở một lượt gửi trước chưa check-out. |
-| Hệ thống tự chuyển về trang Đăng nhập | Phiên đăng nhập hết hạn hoặc quản trị viên vừa đổi vai trò / khóa tài khoản / đặt lại mật khẩu. Đăng nhập lại bằng thông tin mới. |
-| Trạng thái trên thanh trên báo `Đang kết nối lại...` | Mất kết nối mạng tạm thời hoặc backend FastAPI đang khởi động lại; WebSocket sẽ tự kết nối lại theo cơ chế exponential backoff. Bạn có thể nhấn **Làm mới** sau khi kết nối ổn định. |
-| Báo lỗi `Nhân viên chỉ được thao tác thuộc bãi được phân công` | Tài khoản `OPERATOR` đang thao tác trên ô đỗ hoặc lượt xe của bãi khác. Liên hệ `ADMIN` nếu cần đổi bãi phụ trách cho nhân viên. |
-| Không thể xóa bãi/khu/ô đỗ hoặc thẻ RFID | Đối tượng đã phát sinh dữ liệu lịch sử (lượt đỗ, vé tháng, ca làm việc). Hãy dùng tính năng **Bảo trì** (với ô đỗ) hoặc **Mất / Hỏng** (với thẻ) thay vì xóa cứng. |
-| Máy in nhiệt bị lệch lề hoặc in kèm thanh menu | Chọn khổ giấy **80mm**, tắt tùy chọn *Headers and footers* trong hộp thoại in của trình duyệt (giao diện đã tích hợp sẵn CSS `@media print` tự ẩn toàn bộ thanh điều hướng). |
+| Xe vé tháng vào bãi nhưng không thấy thẻ trong dropdown | Kiểm tra đã gõ đúng biển số vé tháng chưa và thẻ đó không đang bị kẹt ở một lượt gửi trước chưa check-out. |
+| Trạng thái Header báo `Đang kết nối lại...` | Mất kết nối mạng tạm thời hoặc backend FastAPI đang khởi động lại; WebSocket tự nối lại theo exponential backoff hoặc nhấn **Làm mới**. |
+| Không thể xóa nhân viên, bãi/khu/ô đỗ hoặc thẻ RFID | Đối tượng đã phát sinh dữ liệu ràng buộc khóa ngoại (`luotdo`, `thanhtoan`, `vethang`, `vitrido`). Với ô đỗ hãy dùng **Bảo trì**, với thẻ hãy chuyển **Mất / Hỏng** thay vì xóa cứng. |
+| Nhấp đúp `Mo_SmartParking.bat` báo cổng `8000` đang bận | Có tiến trình khác chiếm cổng `8000`; chạy từ PowerShell với cổng khác như `.\Mo_SmartParking.bat --port 8001`. |
+| Máy in nhiệt bị lệch lề hoặc in kèm thanh menu | Chọn khổ giấy **80mm** và tắt *Headers and footers* trong hộp thoại in trình duyệt. |
