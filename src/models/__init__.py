@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from models.entities import (
-    AuditLog,
     BaiDoXe,
     BangGia,
-    CaLamViec,
     KhachHang,
     KhuVucDo,
     LoaiKhachHang,
@@ -12,7 +10,6 @@ from models.entities import (
     LuotDo,
     NhanVien,
     PhuongTien,
-    TaiKhoan,
     ThanhToan,
     TheXe,
     VeThang,
@@ -20,7 +17,6 @@ from models.entities import (
 )
 from models.responses import (
     AnalyticsSummaryDTO,
-    AuthUserDTO,
     CatalogsResponse,
     ErrorEnvelope,
     FeeQuoteDTO,
@@ -33,18 +29,12 @@ from models.responses import (
     PaginatedResponse,
     PassRenewResponse,
     ReconcileResponse,
-    ShiftCloseResponse,
-    TokenResponse,
-    WsTicketResponse,
 )
 
 __all__ = [
     "AnalyticsSummaryDTO",
-    "AuditLog",
-    "AuthUserDTO",
     "BaiDoXe",
     "BangGia",
-    "CaLamViec",
     "CatalogsResponse",
     "ErrorEnvelope",
     "FeeQuoteDTO",
@@ -64,12 +54,8 @@ __all__ = [
     "PassRenewResponse",
     "PhuongTien",
     "ReconcileResponse",
-    "ShiftCloseResponse",
-    "TaiKhoan",
     "ThanhToan",
     "TheXe",
-    "TokenResponse",
     "VeThang",
     "ViTriDo",
-    "WsTicketResponse",
 ]

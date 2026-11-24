@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from core.config import Settings, get_settings
 from core.exceptions import (
-    AuthenticationError,
     ConflictError,
     DatabaseError,
     NotFoundError,
@@ -10,7 +9,6 @@ from core.exceptions import (
 )
 
 __all__ = [
-    "AuthenticationError",
     "ConflictError",
     "DatabaseError",
     "NotFoundError",

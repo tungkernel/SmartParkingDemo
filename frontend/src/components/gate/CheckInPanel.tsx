@@ -1,7 +1,8 @@
-import { CheckCircle2, CreditCard, LayoutGrid, LogIn } from 'lucide-react';
+import { CheckCircle2, CreditCard, LayoutGrid, LogIn, UserCheck } from 'lucide-react';
 import { useId, useState } from 'react';
 import type { RefObject } from 'react';
 import { cn } from '../../lib/cn';
+import { formatEmployeeOption } from '../../lib/employee';
 import type { CardRecord, CatalogsResponse, ParkingSlot } from '../../types';
 import { Button } from '../ui/Button';
 import { VehicleIcon } from '../ui/VehicleIcon';
@@ -19,6 +20,8 @@ interface CheckInPanelProps {
   onSlotChange: (id: number) => void;
   cardId: number | '';
   onCardChange: (id: number) => void;
+  employeeId: number | '';
+  onEmployeeChange: (id: number) => void;
   catalogs: CatalogsResponse | undefined;
   slotsForLot: ParkingSlot[];
   allAvailableSlots: ParkingSlot[];
@@ -41,6 +44,8 @@ export function CheckInPanel({
   onSlotChange,
   cardId,
   onCardChange,
+  employeeId,
+  onEmployeeChange,
   catalogs,
   slotsForLot,
   allAvailableSlots,
@@ -54,7 +59,10 @@ export function CheckInPanel({
   const lotSelectId = useId();
   const slotSelectId = useId();
   const cardSelectId = useId();
+  const empSelectId = useId();
   const [slotPickerOpen, setSlotPickerOpen] = useState(false);
+
+  const employees = catalogs?.employees ?? [];
 
   return (
     <section className="card-surface rounded-2xl p-4 xl:max-h-full xl:overflow-y-auto scroll-pane">
@@ -70,7 +78,7 @@ export function CheckInPanel({
       </div>
 
       <form onSubmit={onSubmit} className="space-y-3">
-        {/* License Plate Input styled like a crisp Vietnamese plate frame */}
+        {/* License Plate Input */}
         <div>
           <div className="flex items-center justify-between mb-1">
             <label
@@ -106,7 +114,7 @@ export function CheckInPanel({
           )}
         </div>
 
-        {/* Vehicle Type Selector with distinct icons */}
+        {/* Vehicle Type Selector */}
         <div>
           <span className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Loại phương tiện
@@ -226,12 +234,39 @@ export function CheckInPanel({
           </select>
         </div>
 
+        {/* Employee Selection (Option A) */}
+        <div>
+          <label
+            htmlFor={empSelectId}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1"
+          >
+            <UserCheck className="h-3.5 w-3.5 text-slate-400" />
+            Nhân viên tiếp nhận (Bảo vệ)
+          </label>
+          <select
+            id={empSelectId}
+            value={employeeId}
+            onChange={(e) => onEmployeeChange(Number(e.target.value))}
+            className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-input dark:bg-slate-800/90 px-3 py-2 text-[13px] font-medium text-slate-900 dark:text-slate-100 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-colors"
+          >
+            {employees.length === 0 ? (
+              <option value="">Chưa có nhân viên</option>
+            ) : (
+              employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {formatEmployeeOption(emp)}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+
         <Button
           type="submit"
           variant="success"
           size="lg"
           loading={submitting}
-          disabled={!slotId || !cardId}
+          disabled={!slotId || !cardId || !employeeId}
           icon={<CheckCircle2 className="h-4 w-4" />}
           className="w-full"
         >

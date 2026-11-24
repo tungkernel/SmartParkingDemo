@@ -11,10 +11,10 @@ import { MoveSlotModal } from '../components/gate/MoveSlotModal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useToast } from '../context/ToastContext';
 import { apiRequest, getErrorMessage } from '../lib/api';
+import { pickDefaultEmployeeId } from '../lib/employee';
 import { getHoursParked } from '../lib/time';
 import type {
   ActiveTurn,
-  AuthUser,
   CardRecord,
   CatalogsResponse,
   FeeQuote,
@@ -56,6 +56,8 @@ interface CheckInMutationVars {
   vehicleTypeId: number;
   slotId: number;
   cardId: number;
+  employeeId: number;
+  employeeName?: string;
   vehicleTypeName?: string;
   slotLabel?: string;
   cardCode?: string;
@@ -67,10 +69,11 @@ interface CheckOutMutationVars {
   lostCard: boolean;
   lostCardFee: number;
   replacementCardId: number | null;
+  employeeId: number;
+  employeeName?: string;
 }
 
 interface GatePosPageProps {
-  user: AuthUser;
   onPrint: (doc: PrintableDocument) => void;
 }
 
@@ -80,7 +83,7 @@ function isMonthlyTurn(turn: ActiveTurn): boolean {
     : turn.loaive === 'tháng';
 }
 
-export function GatePosPage({ user, onPrint }: GatePosPageProps) {
+export function GatePosPage({ onPrint }: GatePosPageProps) {
   const { notify } = useToast();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -90,9 +93,10 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
 
   const [plate, setPlate] = useState('');
   const [vehicleTypeId, setVehicleTypeId] = useState<number | ''>('');
-  const [selectedLotId, setSelectedLotId] = useState<number | ''>(user.lot_id ?? '');
+  const [selectedLotId, setSelectedLotId] = useState<number | ''>('');
   const [slotId, setSlotId] = useState<number | ''>('');
   const [cardId, setCardId] = useState<number | ''>('');
+  const [checkInEmpOverride, setCheckInEmpOverride] = useState<number | ''>('');
   const [quickFilter, setQuickFilter] = useState<TurnQuickFilter>('all');
 
   // URL ?q= is single source of truth so deep-links from Alerts/CommandPalette/Overview work seamlessly
@@ -118,6 +122,7 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
   const [lostCard, setLostCard] = useState(false);
   const [lostCardFee, setLostCardFee] = useState(50000);
   const [replacementCardId, setReplacementCardId] = useState<number | ''>('');
+  const [checkOutEmpOverride, setCheckOutEmpOverride] = useState<number | ''>('');
 
   const [moveTurn, setMoveTurn] = useState<ActiveTurn | null>(null);
   const [targetSlotId, setTargetSlotId] = useState<number | ''>('');
@@ -156,6 +161,7 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
   });
 
   const catalogs = catalogsQuery.data;
+  const employees = useMemo(() => catalogs?.employees ?? [], [catalogs?.employees]);
   const availableSlots = useMemo(() => slotsQuery.data ?? [], [slotsQuery.data]);
   const allGateCards = useMemo(() => cardsQuery.data ?? [], [cardsQuery.data]);
   const activeTurns = useMemo(() => turnsQuery.data ?? [], [turnsQuery.data]);
@@ -175,8 +181,27 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
     () => findMatchingLotForVehicleType(catalogs?.lots ?? [], effectiveVehicleType?.tenloai),
     [catalogs, effectiveVehicleType],
   );
-  const effectiveLotId =
-    selectedLotId || user.lot_id || matchedLotForVehicle?.id || catalogs?.lots[0]?.id || '';
+  const effectiveLotId = selectedLotId || matchedLotForVehicle?.id || catalogs?.lots[0]?.id || '';
+
+  const effectiveCheckInEmpId = useMemo<number | ''>(() => {
+    if (checkInEmpOverride && employees.some((e) => e.id === checkInEmpOverride)) {
+      return checkInEmpOverride;
+    }
+    return pickDefaultEmployeeId(employees, {
+      lotId: effectiveLotId,
+      preferredRole: 'guard',
+    });
+  }, [checkInEmpOverride, employees, effectiveLotId]);
+
+  const effectiveCheckOutEmpId = useMemo<number | ''>(() => {
+    if (checkOutEmpOverride && employees.some((e) => e.id === checkOutEmpOverride)) {
+      return checkOutEmpOverride;
+    }
+    return pickDefaultEmployeeId(employees, {
+      lotId: checkoutTurn?.idbdx,
+      preferredRole: 'cashier',
+    });
+  }, [checkOutEmpOverride, employees, checkoutTurn?.idbdx]);
 
   const handleVehicleTypeChange = useCallback(
     (nextVtId: number) => {
@@ -186,6 +211,7 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
       if (matchingLot) {
         setSelectedLotId(matchingLot.id);
         setSlotId('');
+        setCheckInEmpOverride('');
       }
     },
     [catalogs],
@@ -288,7 +314,6 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
     void queryClient.invalidateQueries({ queryKey: ['overview'] });
     void queryClient.invalidateQueries({ queryKey: ['catalogs'] });
     void queryClient.invalidateQueries({ queryKey: ['alerts'] });
-    void queryClient.invalidateQueries({ queryKey: ['shifts'] });
   };
 
   const checkInMutation = useMutation({
@@ -300,6 +325,7 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
           vehicle_type_id: vars.vehicleTypeId,
           slot_id: vars.slotId,
           card_id: vars.cardId,
+          employee_id: vars.employeeId,
         }),
       }),
     onSuccess: (res, vars) => {
@@ -312,12 +338,13 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
         slotLabel: vars.slotLabel,
         cardCode: vars.cardCode,
         checkinTime: new Date().toISOString(),
-        operatorName: user.full_name,
+        operatorName: vars.employeeName,
       });
       setPlate('');
       setVehicleTypeId('');
       setSlotId('');
       setCardId('');
+      setCheckInEmpOverride('');
       invalidateGateData();
       window.setTimeout(() => plateInputRef.current?.focus(), 100);
     },
@@ -329,6 +356,7 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
       apiRequest<FeeQuote>(`/api/v1/turns/${vars.turn.id_luotdo}/check-out`, {
         method: 'POST',
         body: JSON.stringify({
+          employee_id: vars.employeeId,
           payment_method: vars.paymentMethod,
           lost_card: vars.lostCard,
           lost_card_fee: vars.lostCard ? vars.lostCardFee : 0,
@@ -340,6 +368,7 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
       setCheckoutTurn(null);
       setLostCard(false);
       setReplacementCardId('');
+      setCheckOutEmpOverride('');
       onPrint({
         kind: 'receipt',
         id: res.turn_id,
@@ -352,7 +381,7 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
         checkoutTime: res.checkout_time,
         paymentMethod: res.payment_method ?? vars.paymentMethod,
         amount: res.amount,
-        operatorName: user.full_name,
+        operatorName: vars.employeeName,
       });
       invalidateGateData();
       void queryClient.invalidateQueries({ queryKey: ['transactions'] });
@@ -388,21 +417,25 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
 
   const handleCheckIn = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!effectiveVehicleTypeId || !effectiveSlotId || !effectiveCardId) {
-      notify('err', 'Vui lòng chọn đầy đủ loại xe, vị trí trống và thẻ RFID.');
+    if (!effectiveVehicleTypeId || !effectiveSlotId || !effectiveCardId || !effectiveCheckInEmpId) {
+      notify('err', 'Vui lòng chọn đầy đủ loại xe, vị trí trống, thẻ RFID và nhân viên tiếp nhận.');
       return;
     }
     const vtId = Number(effectiveVehicleTypeId);
     const sId = Number(effectiveSlotId);
     const cId = Number(effectiveCardId);
+    const empId = Number(effectiveCheckInEmpId);
     const vtName = catalogs?.vehicle_types.find((v) => v.id === vtId)?.tenloai;
     const slot = availableSlots.find((s) => s.id === sId);
     const card = checkInCards.find((c) => c.id === cId);
+    const emp = employees.find((item) => item.id === empId);
     checkInMutation.mutate({
       plate: plate.trim().toUpperCase(),
       vehicleTypeId: vtId,
       slotId: sId,
       cardId: cId,
+      employeeId: empId,
+      employeeName: emp?.hoten,
       vehicleTypeName: vtName,
       slotLabel: slot ? `${slot.tenbaido} · ${slot.ten_khuvuc}-${slot.sothutu}` : undefined,
       cardCode: card?.maso,
@@ -415,6 +448,7 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
     setLostCard(false);
     setLostCardFee(50000);
     setReplacementCardId('');
+    setCheckOutEmpOverride('');
   };
 
   const busyTurnId =
@@ -449,17 +483,21 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
             onLotChange={(id) => {
               setSelectedLotId(id);
               setSlotId('');
+              setCheckInEmpOverride('');
             }}
             slotId={effectiveSlotId}
             onSlotChange={setSlotId}
             cardId={effectiveCardId}
             onCardChange={setCardId}
+            employeeId={effectiveCheckInEmpId}
+            onEmployeeChange={setCheckInEmpOverride}
             catalogs={catalogs}
             slotsForLot={slotsForLot}
             allAvailableSlots={availableSlots}
             onSelectSlotFromMap={(nextSlotId, nextLotId) => {
               setSelectedLotId(nextLotId);
               setSlotId(nextSlotId);
+              setCheckInEmpOverride('');
             }}
             availableCards={checkInCards}
             matchedPassCard={matchedPassCard}
@@ -481,7 +519,7 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
             loading={turnsQuery.isLoading}
             error={turnsQuery.isError ? getErrorMessage(turnsQuery.error) : null}
             onRetry={() => void turnsQuery.refetch()}
-            canManageTurns={user.role === 'ADMIN' || user.role === 'OPERATOR'}
+            canManageTurns
             busyTurnId={busyTurnId}
             onOpenCheckout={openCheckoutModal}
             onOpenMoveSlot={(turn) => {
@@ -518,16 +556,23 @@ export function GatePosPage({ user, onPrint }: GatePosPageProps) {
         replacementCardId={replacementCardId}
         onReplacementCardChange={setReplacementCardId}
         availableCards={walkinCards}
+        employees={employees}
+        employeeId={effectiveCheckOutEmpId}
+        onEmployeeChange={setCheckOutEmpOverride}
         vietQrConfig={catalogs?.vietqr}
         submitting={checkOutMutation.isPending}
         onConfirm={() => {
-          if (!checkoutTurn) return;
+          if (!checkoutTurn || !effectiveCheckOutEmpId) return;
+          const empId = Number(effectiveCheckOutEmpId);
+          const emp = employees.find((e) => e.id === empId);
           checkOutMutation.mutate({
             turn: checkoutTurn,
             paymentMethod,
             lostCard,
             lostCardFee,
             replacementCardId: replacementCardId ? Number(replacementCardId) : null,
+            employeeId: empId,
+            employeeName: emp?.hoten,
           });
         }}
         onClose={() => setCheckoutTurn(null)}

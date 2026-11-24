@@ -5,8 +5,6 @@ import { createRef } from 'react';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AccountsTab } from '../components/admin/AccountsTab';
-import { AuditLogDrawer } from '../components/admin/AuditLogDrawer';
 import { PeopleTab } from '../components/admin/PeopleTab';
 import { ActiveTurnsTable } from '../components/gate/ActiveTurnsTable';
 import { CheckoutModal } from '../components/gate/CheckoutModal';
@@ -14,15 +12,13 @@ import { QuickSlotPicker } from '../components/gate/QuickSlotPicker';
 import { TariffMatrix } from '../components/passes/TariffMatrix';
 import { LicensePlate } from '../components/ui/LicensePlate';
 import { Modal } from '../components/ui/Modal';
-import { PasswordInput } from '../components/ui/PasswordInput';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { ToastProvider } from '../context/ToastContext';
 import { formatElapsedDuration, getDaysRemaining, getHoursParked } from '../lib/time';
 import { findMatchingLotForVehicleType } from '../pages/GatePosPage';
 import type {
   ActiveTurn,
-  AuditLog,
-  AuthUser,
+  CatalogEmployee,
   FeeQuote,
   ParkingLot,
   ParkingSlot,
@@ -97,19 +93,6 @@ describe('UI/UX upgrade primitives & workflows', () => {
     expect(document.documentElement.getAttribute('data-accent')).toBe('crimson');
   });
 
-  it('toggles password visibility via PasswordInput', async () => {
-    const user = userEvent.setup();
-    render(<PasswordInput aria-label="Mật khẩu thử" defaultValue="Secret123" />);
-    const input = screen.getByLabelText('Mật khẩu thử');
-    expect(input).toHaveAttribute('type', 'password');
-
-    await user.click(screen.getByRole('button', { name: 'Hiện ký tự' }));
-    expect(input).toHaveAttribute('type', 'text');
-
-    await user.click(screen.getByRole('button', { name: 'Ẩn ký tự' }));
-    expect(input).toHaveAttribute('type', 'password');
-  });
-
   it('renders LicensePlate badge and fallback dash when empty', () => {
     const { rerender } = render(<LicensePlate plate="29A-888.99" />);
     expect(screen.getByText('29A-888.99')).toBeInTheDocument();
@@ -129,7 +112,7 @@ describe('UI/UX upgrade primitives & workflows', () => {
     expect(document.body.style.overflow).toBe('');
   });
 
-  it('calculates cash change immediately in CheckoutModal', async () => {
+  it('calculates cash change immediately in CheckoutModal with employee selector', async () => {
     const user = userEvent.setup();
     const turn: ActiveTurn = {
       id_luotdo: 101,
@@ -157,6 +140,16 @@ describe('UI/UX upgrade primitives & workflows', () => {
       is_monthly_pass: false,
       monthly_pass_id: null,
     };
+    const employees: CatalogEmployee[] = [
+      {
+        id: 2001,
+        hoten: 'Trần Thị Bình',
+        chucvu: 'Thu ngân',
+        sdt: '0912',
+        idbdx: 1,
+        tenbaido: 'Bãi A',
+      },
+    ];
 
     render(
       <CheckoutModal
@@ -172,102 +165,18 @@ describe('UI/UX upgrade primitives & workflows', () => {
         replacementCardId=""
         onReplacementCardChange={vi.fn()}
         availableCards={[]}
+        employees={employees}
+        employeeId={2001}
+        onEmployeeChange={vi.fn()}
         submitting={false}
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />,
     );
 
+    expect(screen.getByLabelText(/Nhân viên thu ngân/i)).toHaveValue('2001');
     await user.click(screen.getByRole('button', { name: '50k' }));
     expect(screen.getByText(/45\.000 đ/)).toBeInTheDocument();
-  });
-
-  it('parses and renders audit JSON fields inside AuditLogDrawer', () => {
-    const log: AuditLog = {
-      id: 42,
-      actor_id: 1,
-      actor_username: 'admin',
-      action: 'CHECK_OUT',
-      entity_type: 'luotdo',
-      entity_id: '101',
-      ip_address: '127.0.0.1',
-      details_json: JSON.stringify({ plate: '29A-123.45', amount: 15000 }),
-      created_at: '2026-11-22 09:00:00',
-    };
-
-    render(<AuditLogDrawer log={log} onClose={vi.fn()} />);
-    expect(screen.getByText('Chi tiết nhật ký #42')).toBeInTheDocument();
-    expect(screen.getByText('@admin')).toBeInTheDocument();
-    expect(screen.getByText('29A-123.45')).toBeInTheDocument();
-    expect(screen.getByText('15000')).toBeInTheDocument();
-  });
-
-  it('updates role and resets password via AccountsTab PATCH /api/v1/accounts/{id}', async () => {
-    const user = userEvent.setup();
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-      const url = typeof input === 'string' ? input : input.toString();
-      if (url.includes('/api/v1/accounts/7') && init?.method === 'PATCH') {
-        return Promise.resolve(
-          new Response(JSON.stringify({ message: 'ok' }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-        );
-      }
-      if (url.includes('/api/v1/accounts')) {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify([
-              {
-                id: 7,
-                idnv: 2,
-                username: 'baove1',
-                role: 'OPERATOR',
-                is_active: true,
-                last_login_at: null,
-                created_at: null,
-                ten_nhanvien: 'Trần Bảo Vệ',
-                chucvu: 'Bảo vệ',
-                sdt: '0912345678',
-                email: null,
-                tenbaido: 'Bãi A',
-              },
-            ]),
-            { status: 200, headers: { 'Content-Type': 'application/json' } },
-          ),
-        );
-      }
-      return Promise.resolve(
-        new Response(JSON.stringify([]), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      );
-    });
-
-    renderWithQueryAndToast(<AccountsTab />);
-
-    const editBtn = await screen.findByRole('button', { name: 'Sửa / Đặt lại MK' });
-    await user.click(editBtn);
-
-    const roleSelect = screen.getByLabelText('Vai trò RBAC');
-    await user.selectOptions(roleSelect, 'ACCOUNTANT');
-
-    const newPassInput = screen.getByLabelText(/Mật khẩu mới/i);
-    await user.type(newPassInput, 'ResetPass123!');
-
-    await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-
-    await waitFor(() => {
-      const patchCall = fetchSpy.mock.calls.find(
-        ([u, init]) => String(u).includes('/api/v1/accounts/7') && init?.method === 'PATCH',
-      );
-      expect(patchCall).toBeDefined();
-      expect(JSON.parse(String(patchCall?.[1]?.body))).toEqual({
-        role: 'ACCOUNTANT',
-        new_password: 'ResetPass123!',
-      });
-    });
   });
 
   it('renders TariffMatrix edit and delete actions according to permissions', async () => {
@@ -317,14 +226,6 @@ describe('UI/UX upgrade primitives & workflows', () => {
 
   it('submits new employee via PeopleTab with null optional dates', async () => {
     const user = userEvent.setup();
-    const adminUser: AuthUser = {
-      account_id: 1,
-      employee_id: 1,
-      username: 'admin',
-      full_name: 'Quản trị viên',
-      role: 'ADMIN',
-      lot_id: null,
-    };
 
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = typeof input === 'string' ? input : input.toString();
@@ -368,7 +269,7 @@ describe('UI/UX upgrade primitives & workflows', () => {
       );
     });
 
-    renderWithQueryAndToast(<PeopleTab user={adminUser} />);
+    renderWithQueryAndToast(<PeopleTab />);
 
     const addBtn = await screen.findByRole('button', { name: 'Thêm nhân viên' });
     await user.click(addBtn);
@@ -482,7 +383,6 @@ describe('UI/UX upgrade primitives & workflows', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(true);
     expect(localStorage.getItem('smart_parking_theme')).toBe('dark');
 
-    // Clean up back to light so other tests start cleanly
     await user.click(screen.getByRole('button', { name: 'Toggle Theme' }));
     expect(document.documentElement.classList.contains('dark')).toBe(false);
     localStorage.removeItem('smart_parking_theme');
@@ -612,19 +512,16 @@ describe('UI/UX upgrade primitives & workflows', () => {
       />,
     );
 
-    // By default shows all 3 lots in grouped map
     expect(screen.getByText('Chọn vị trí trống — Tất cả bãi đỗ')).toBeInTheDocument();
     expect(screen.getByText('A-4')).toBeInTheDocument();
     expect(screen.getByText('M-5')).toBeInTheDocument();
     expect(screen.getByText('O-2')).toBeInTheDocument();
 
-    // Switch to car lot tab
     await user.click(screen.getByRole('tab', { name: /Bãi đỗ ô tô/i }));
     expect(screen.getByText('Chọn vị trí trống — Bãi đỗ ô tô')).toBeInTheDocument();
     expect(screen.queryByText('A-4')).not.toBeInTheDocument();
     expect(screen.getByText('O-2')).toBeInTheDocument();
 
-    // Clicking slot O-2 returns slotId=301 and lotId=3 and closes modal
     await user.click(screen.getByRole('button', { name: /O-2/i }));
     expect(onSelect).toHaveBeenCalledWith(301, 3);
     expect(onClose).toHaveBeenCalledTimes(1);

@@ -1,9 +1,11 @@
-import { Banknote, CreditCard, PlusCircle, QrCode } from 'lucide-react';
+import { Banknote, CreditCard, PlusCircle, QrCode, UserCheck } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useId, useMemo, useState } from 'react';
 import { formatVnd } from '../../lib/api';
 import { cn } from '../../lib/cn';
+import { formatEmployeeOption, pickDefaultEmployeeId } from '../../lib/employee';
 import { buildVietQrPayload } from '../../lib/vietqr';
+import { findMatchingLotForVehicleType } from '../../pages/GatePosPage';
 import type { CardRecord, CatalogsResponse, PaymentMethod, Tariff } from '../../types';
 import { Button } from '../ui/Button';
 import { Drawer } from '../ui/Drawer';
@@ -18,6 +20,8 @@ export interface RegisterPassPayload {
   cardId: number;
   months: number;
   payMethod: PaymentMethod;
+  employeeId: number;
+  employeeName?: string;
   estimatedAmount: number;
   cardCode?: string;
   vehicleTypeName?: string;
@@ -52,13 +56,25 @@ export function RegisterPassDrawer({
   const [plate, setPlate] = useState('');
   const [vehTypeId, setVehTypeId] = useState<number | ''>('');
   const [cardId, setCardId] = useState<number | ''>('');
+  const [empOverride, setEmpOverride] = useState<number | ''>('');
   const [months, setMonths] = useState(1);
   const [payMethod, setPayMethod] = useState<PaymentMethod>('Tiền mặt');
 
+  const employees = useMemo(() => catalogs?.employees ?? [], [catalogs?.employees]);
   const effectiveVehTypeId = vehTypeId || catalogs?.vehicle_types[0]?.id || '';
   const effectiveCustTypeId = custTypeId || catalogs?.customer_types[0]?.id || '';
   const effectiveCardId =
     cardId && cards.some((c) => c.id === cardId) ? cardId : (cards[0]?.id ?? '');
+
+  const matchedLotId = useMemo(() => {
+    const vt = catalogs?.vehicle_types.find((v) => v.id === Number(effectiveVehTypeId));
+    return findMatchingLotForVehicleType(catalogs?.lots ?? [], vt?.tenloai)?.id ?? null;
+  }, [catalogs, effectiveVehTypeId]);
+
+  const effectiveEmployeeId = useMemo<number | ''>(() => {
+    if (empOverride && employees.some((e) => e.id === empOverride)) return empOverride;
+    return pickDefaultEmployeeId(employees, { lotId: matchedLotId, preferredRole: 'cashier' });
+  }, [empOverride, employees, matchedLotId]);
 
   const estimatedUnitPrice = useMemo(() => {
     const match = tariffs.find(
@@ -83,6 +99,7 @@ export function RegisterPassDrawer({
     setCccd('');
     setPlate('');
     setCardId('');
+    setEmpOverride('');
     setMonths(1);
     setPayMethod('Tiền mặt');
   };
@@ -92,6 +109,8 @@ export function RegisterPassDrawer({
     const cId = Number(effectiveCardId);
     const vId = Number(effectiveVehTypeId);
     const custId = Number(effectiveCustTypeId);
+    const empId = Number(effectiveEmployeeId);
+    const emp = employees.find((item) => item.id === empId);
     onSubmit(
       {
         hoten: hoten.trim(),
@@ -103,6 +122,8 @@ export function RegisterPassDrawer({
         cardId: cId,
         months,
         payMethod,
+        employeeId: empId,
+        employeeName: emp?.hoten,
         estimatedAmount: totalAmount,
         cardCode: cards.find((c) => c.id === cId)?.maso,
         vehicleTypeName: catalogs?.vehicle_types.find((v) => v.id === vId)?.tenloai,
@@ -133,7 +154,7 @@ export function RegisterPassDrawer({
             form={formId}
             variant="primary"
             loading={submitting}
-            disabled={!effectiveCardId}
+            disabled={!effectiveCardId || !effectiveEmployeeId}
           >
             {submitting ? 'Đang đăng ký...' : 'Đăng ký & In biên lai'}
           </Button>
@@ -229,7 +250,10 @@ export function RegisterPassDrawer({
             <select
               id={`${prefix}-veh`}
               value={effectiveVehTypeId}
-              onChange={(e) => setVehTypeId(Number(e.target.value))}
+              onChange={(e) => {
+                setVehTypeId(Number(e.target.value));
+                setEmpOverride('');
+              }}
               className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-input dark:bg-slate-800/90 px-3 py-2.5 text-[13px]"
             >
               {(catalogs?.vehicle_types ?? []).map((vt) => (
@@ -322,6 +346,33 @@ export function RegisterPassDrawer({
               className="w-16 rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-input dark:bg-slate-800/90 px-2.5 py-2 text-center font-mono-plate text-xs font-bold"
             />
           </div>
+        </div>
+
+        {/* Cashier Attribution (Option A) */}
+        <div>
+          <label
+            htmlFor={`${prefix}-emp`}
+            className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+          >
+            <UserCheck className="h-3.5 w-3.5 text-slate-400" />
+            Nhân viên thu phí
+          </label>
+          <select
+            id={`${prefix}-emp`}
+            value={effectiveEmployeeId}
+            onChange={(e) => setEmpOverride(Number(e.target.value))}
+            className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-input dark:bg-slate-800/90 px-3 py-2.5 text-[13px] font-medium"
+          >
+            {employees.length === 0 ? (
+              <option value="">Chưa có nhân viên</option>
+            ) : (
+              employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {formatEmployeeOption(emp)}
+                </option>
+              ))
+            )}
+          </select>
         </div>
 
         {/* Payment Method */}

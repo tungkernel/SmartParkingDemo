@@ -1,30 +1,16 @@
-import { Building2, CreditCard, History, Shield, Users } from 'lucide-react';
+import { Building2, CreditCard, Users } from 'lucide-react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
-import { AccountsTab } from '../components/admin/AccountsTab';
-import { AuditLogsTab } from '../components/admin/AuditLogsTab';
 import { CardsTab } from '../components/admin/CardsTab';
 import { InfrastructureTab } from '../components/admin/InfrastructureTab';
 import { PeopleTab } from '../components/admin/PeopleTab';
 import { cn } from '../lib/cn';
-import type { AuthUser } from '../types';
 
-interface AdminPageProps {
-  user: AuthUser;
-}
-
-export function AdminPage({ user }: AdminPageProps) {
-  const isAdmin = user.role === 'ADMIN';
+export function AdminPage() {
   const tabs = [
-    ...(isAdmin ? [{ to: '/admin/accounts', label: 'Tài khoản RBAC', icon: Shield }] : []),
     { to: '/admin/people', label: 'Nhân sự & Danh bạ', icon: Users },
     { to: '/admin/cards', label: 'Kho thẻ RFID', icon: CreditCard },
-    ...(isAdmin
-      ? [{ to: '/admin/infrastructure', label: 'Hạ tầng bãi/khu', icon: Building2 }]
-      : []),
-    { to: '/admin/audit', label: 'Nhật ký Kiểm toán', icon: History },
+    { to: '/admin/infrastructure', label: 'Hạ tầng bãi/khu', icon: Building2 },
   ];
-
-  const defaultTab = isAdmin ? '/admin/accounts' : '/admin/people';
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-3.5">
@@ -56,12 +42,10 @@ export function AdminPage({ user }: AdminPageProps) {
 
       <div className="flex-1 min-h-0 flex flex-col">
         <Routes>
-          {isAdmin && <Route path="accounts" element={<AccountsTab />} />}
-          <Route path="people" element={<PeopleTab user={user} />} />
-          <Route path="cards" element={<CardsTab user={user} />} />
-          {isAdmin && <Route path="infrastructure" element={<InfrastructureTab />} />}
-          <Route path="audit" element={<AuditLogsTab />} />
-          <Route path="*" element={<Navigate to={defaultTab} replace />} />
+          <Route path="people" element={<PeopleTab />} />
+          <Route path="cards" element={<CardsTab />} />
+          <Route path="infrastructure" element={<InfrastructureTab />} />
+          <Route path="*" element={<Navigate to="/admin/people" replace />} />
         </Routes>
       </div>
     </div>

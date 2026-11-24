@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import secrets
 import tomllib
 from functools import lru_cache
 from pathlib import Path
@@ -12,7 +11,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
-_EPHEMERAL_DEV_SECRET = secrets.token_urlsafe(48)
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -27,7 +25,7 @@ class Settings(BaseSettings):
     )
 
     app_env: Literal["development", "staging", "production", "test"] = "development"
-    app_version: str = "2.1.0"
+    app_version: str = "2.2.0"
     log_level: str = "INFO"
 
     # Database (TiDB Cloud / MySQL 8)
@@ -42,19 +40,11 @@ class Settings(BaseSettings):
     tidb_read_timeout: int = Field(default=30, ge=1, le=300)
     tidb_write_timeout: int = Field(default=30, ge=1, le=300)
 
-    # Authentication & Security
-    auth_secret_key: Optional[str] = None
-    auth_access_ttl_seconds: int = Field(default=3600, ge=60, le=86400)
-    auth_refresh_ttl_seconds: int = Field(default=7 * 86400, ge=300, le=90 * 86400)
-    auth_default_seed_password: Optional[str] = None
-
-    # CORS & Rate Limiting
+    # CORS
     cors_allowed_origins: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"
         "http://localhost:8000,http://127.0.0.1:8000"
     )
-    rate_limit_login_max: int = Field(default=10, ge=1, le=1000)
-    rate_limit_window_seconds: int = Field(default=60, ge=5, le=3600)
     trusted_proxy_ips: str = ""
 
     # Operations & Display
@@ -75,29 +65,6 @@ class Settings(BaseSettings):
     @property
     def trusted_proxy_set(self) -> set[str]:
         return {item.strip() for item in self.trusted_proxy_ips.split(",") if item.strip()}
-
-    def resolve_auth_secret(self) -> str:
-        """Return signing secret, failing fast in production when unconfigured."""
-        if self.auth_secret_key and len(self.auth_secret_key.strip()) >= 16:
-            return self.auth_secret_key.strip()
-        if self.app_env == "production":
-            raise RuntimeError(
-                "AUTH_SECRET_KEY phải được cấu hình (tối thiểu 16 ký tự, khuyến nghị >= 32 ký tự) "
-                "trong môi trường production."
-            )
-        logger.warning(
-            "AUTH_SECRET_KEY chưa được cấu hình; sử dụng khóa ngẫu nhiên tạm thời cho môi trường %s.",
-            self.app_env,
-        )
-        return _EPHEMERAL_DEV_SECRET
-
-    def resolve_seed_password(self) -> Optional[str]:
-        """Return initial password for default accounts, disabled in production unless set."""
-        if self.auth_default_seed_password:
-            return self.auth_default_seed_password
-        if self.app_env == "production":
-            return None
-        return "123456"
 
     def resolve_db_params(self) -> dict[str, object]:
         """Resolve database connection settings from env or legacy `.streamlit/secrets.toml`."""

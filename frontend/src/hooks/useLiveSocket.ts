@@ -1,34 +1,25 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { API_BASE, apiRequest } from '../lib/api';
+import { API_BASE } from '../lib/api';
 import type { WsEventMessage } from '../types';
 
-export function resolveLiveSocketUrl(ticket: string, apiBase = API_BASE): string {
-  const encoded = encodeURIComponent(ticket);
+export function resolveLiveSocketUrl(apiBase = API_BASE): string {
   if (apiBase) {
     try {
       const parsed = new URL(apiBase);
       const wsProto = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${wsProto}//${parsed.host}/ws/live?ticket=${encoded}`;
+      return `${wsProto}//${parsed.host}/ws/live`;
     } catch {
       // Fall back to same-origin location when apiBase is relative
     }
   }
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${window.location.host}/ws/live?ticket=${encoded}`;
+  return `${proto}//${window.location.host}/ws/live`;
 }
 
 const EVENT_QUERY_MAP: Record<string, string[][]> = {
   turn_checked_in: [['turns'], ['slots'], ['cards'], ['overview'], ['alerts']],
-  turn_checked_out: [
-    ['turns'],
-    ['slots'],
-    ['cards'],
-    ['overview'],
-    ['alerts'],
-    ['transactions'],
-    ['shifts'],
-  ],
+  turn_checked_out: [['turns'], ['slots'], ['cards'], ['overview'], ['alerts'], ['transactions']],
   turn_cancelled: [['turns'], ['slots'], ['cards'], ['overview'], ['alerts']],
   slots_updated: [['slots'], ['overview'], ['turns'], ['alerts']],
   infrastructure_updated: [['overview'], ['lots'], ['zones'], ['slots'], ['catalogs']],
@@ -74,28 +65,15 @@ export function useLiveSocket(enabled: boolean): boolean {
       const baseDelay = Math.min(1000 * 2 ** (attempt - 1), 30_000);
       const jitter = Math.floor(Math.random() * 600);
       reconnectTimer = window.setTimeout(() => {
-        void connect();
+        connect();
       }, baseDelay + jitter);
     };
 
-    const connect = async () => {
+    const connect = () => {
       if (disposed || !navigator.onLine) return;
       clearTimers();
 
-      let ticket: string;
-      try {
-        const res = await apiRequest<{ ticket: string }>('/api/v1/auth/ws-ticket', {
-          method: 'POST',
-        });
-        ticket = res.ticket;
-      } catch {
-        setConnected(false);
-        scheduleReconnect();
-        return;
-      }
-      if (disposed) return;
-
-      const url = resolveLiveSocketUrl(ticket);
+      const url = resolveLiveSocketUrl();
       ws = new WebSocket(url);
 
       ws.onopen = () => {
@@ -136,16 +114,16 @@ export function useLiveSocket(enabled: boolean): boolean {
 
     const handleOnline = () => {
       attempt = 0;
-      void connect();
+      connect();
     };
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && (!ws || ws.readyState !== WebSocket.OPEN)) {
         attempt = 0;
-        void connect();
+        connect();
       }
     };
 
-    void connect();
+    connect();
     window.addEventListener('online', handleOnline);
     document.addEventListener('visibilitychange', handleVisibility);
 

@@ -6,16 +6,12 @@ from typing import Any, Optional
 from core.exceptions import ConflictError, NotFoundError, ValidationError
 from services.db_service import DBService
 from services.domain.base import (
-    AuditActor,
-    mask_cccd,
-    mask_phone,
     normalize_payment_method,
     normalize_plate,
     require_text,
     utc_now_str,
     vn_date_range_utc_bounds,
     vn_today,
-    write_audit_in_tx,
 )
 
 
@@ -31,7 +27,6 @@ class PassService:
         keyword: Optional[str] = None,
         limit: Optional[int] = None,
         offset: int = 0,
-        redact_pii: bool = False,
     ) -> list[dict[str, Any]]:
         """List monthly passes with optional status/keyword SQL filtering and pagination."""
         today_str = vn_today().strftime("%Y-%m-%d")
@@ -54,7 +49,7 @@ class PassService:
             limit_clause = "LIMIT %s OFFSET %s"
             params.extend([int(limit), max(0, int(offset))])
 
-        rows = self.db.fetch_all(
+        return self.db.fetch_all(
             f"""
             SELECT
                 vt.id,
@@ -91,11 +86,6 @@ class PassService:
             """,
             params,
         )
-        if redact_pii:
-            for row in rows:
-                row["sdt"] = mask_phone(row.get("sdt"))
-                row["cccd"] = mask_cccd(row.get("cccd"))
-        return rows
 
     def count_monthly_passes(
         self,
@@ -141,7 +131,6 @@ class PassService:
         months: int = 1,
         employee_id: Optional[int] = None,
         payment_method: str = "Tiền mặt",
-        actor: Optional[AuditActor] = None,
     ) -> int:
         """Register a new monthly parking pass atomically with overlap & card locking checks."""
         hoten_clean = require_text(hoten, "Họ tên khách hàng", 60)
@@ -247,14 +236,6 @@ class PassService:
                     """,
                     (amount, now_utc_str, employee_id, clean_method, pass_id),
                 )
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "REGISTER_PASS",
-                "vethang",
-                pass_id,
-                {"plate": plate, "months": months, "amount": amount, "payment_method": clean_method},
-            )
             return pass_id
 
     def renew_monthly_pass(
@@ -263,7 +244,6 @@ class PassService:
         months: int,
         employee_id: Optional[int] = None,
         payment_method: str = "Tiền mặt",
-        actor: Optional[AuditActor] = None,
     ) -> dict[str, Any]:
         """Extend an existing monthly pass by N 30-day periods and optionally record payment."""
         if months <= 0 or months > 24:
@@ -306,16 +286,7 @@ class PassService:
                     """,
                     (amount, now_utc_str, employee_id, clean_method, pass_id),
                 )
-            res = {"pass_id": pass_id, "new_end_date": new_end, "amount": amount}
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "RENEW_PASS",
-                "vethang",
-                pass_id,
-                {"months": months, "new_end_date": str(new_end), "amount": amount, "payment_method": clean_method},
-            )
-        return res
+            return {"pass_id": pass_id, "new_end_date": new_end, "amount": amount}
 
     def update_monthly_pass_assets(
         self,
@@ -323,7 +294,6 @@ class PassService:
         plate: str,
         vehicle_type_id: int,
         new_card_id: int,
-        actor: Optional[AuditActor] = None,
     ) -> None:
         """Reassign vehicle plate or RFID card for an existing monthly pass atomically."""
         clean_plate = normalize_plate(plate)
@@ -372,20 +342,8 @@ class PassService:
                 "UPDATE vethang SET idpt = %s, idtx = %s WHERE id = %s",
                 (vehicle_id, new_card_id, pass_id),
             )
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "UPDATE_PASS_ASSETS",
-                "vethang",
-                pass_id,
-                {"plate": clean_plate, "vehicle_type_id": vehicle_type_id, "new_card_id": new_card_id},
-            )
 
-    def cancel_monthly_pass(
-        self,
-        pass_id: int,
-        actor: Optional[AuditActor] = None,
-    ) -> None:
+    def cancel_monthly_pass(self, pass_id: int) -> None:
         """Expire a monthly pass early and free card if not in an active turn."""
         yesterday = (vn_today() - timedelta(days=1)).strftime("%Y-%m-%d")
         with self.db.transaction() as cursor:
@@ -414,7 +372,6 @@ class PassService:
                     "UPDATE thexe SET trangthai = 1 WHERE id = %s AND trangthai = 0",
                     (row["idtx"],),
                 )
-            write_audit_in_tx(cursor, actor, "CANCEL_PASS", "vethang", pass_id)
 
     def get_monthly_pass_revenue_summary(self) -> dict[str, Any]:
         """Aggregate monthly pass counts and actual collected revenue (including renewals)."""

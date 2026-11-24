@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Tag,
   Trash2,
+  UserCheck,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useId, useMemo, useState } from 'react';
@@ -32,8 +33,9 @@ import { apiRequest, formatDate, formatVnd, getErrorMessage } from '../lib/api';
 import { cn } from '../lib/cn';
 import { getDaysRemaining, getPassProgressPct } from '../lib/time';
 import { buildVietQrPayload } from '../lib/vietqr';
+import { formatEmployeeOption, pickDefaultEmployeeId } from '../lib/employee';
+import { findMatchingLotForVehicleType } from './GatePosPage';
 import type {
-  AuthUser,
   CardRecord,
   CatalogsResponse,
   MonthlyPass,
@@ -46,14 +48,15 @@ interface RenewPassVars {
   pass: MonthlyPass;
   renewM: number;
   method: PaymentMethod;
+  employeeId: number;
+  employeeName?: string;
 }
 
 interface PassesTariffsPageProps {
-  user: AuthUser;
   onPrint: (doc: PrintableDocument) => void;
 }
 
-export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
+export function PassesTariffsPage({ onPrint }: PassesTariffsPageProps) {
   const { notify } = useToast();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -86,6 +89,7 @@ export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
   const [renewTarget, setRenewTarget] = useState<MonthlyPass | null>(null);
   const [renewMonths, setRenewMonths] = useState(1);
   const [renewPayMethod, setRenewPayMethod] = useState<PaymentMethod>('Tiền mặt');
+  const [renewEmpOverride, setRenewEmpOverride] = useState<number | ''>('');
   const [assetsTarget, setAssetsTarget] = useState<MonthlyPass | null>(null);
   const [assetsPlate, setAssetsPlate] = useState('');
   const [assetsVehicleTypeId, setAssetsVehicleTypeId] = useState<number | ''>('');
@@ -132,8 +136,20 @@ export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
   });
 
   const catalogs = catalogsQuery.data;
+  const employees = useMemo(() => catalogs?.employees ?? [], [catalogs?.employees]);
   const tariffs = useMemo(() => tariffsQuery.data ?? [], [tariffsQuery.data]);
   const cards = useMemo(() => cardsQuery.data ?? [], [cardsQuery.data]);
+
+  const effectiveRenewEmpId = useMemo<number | ''>(() => {
+    if (renewEmpOverride && employees.some((e) => e.id === renewEmpOverride)) {
+      return renewEmpOverride;
+    }
+    const matchedLotId = findMatchingLotForVehicleType(
+      catalogs?.lots ?? [],
+      renewTarget?.loaiphuongtien,
+    )?.id;
+    return pickDefaultEmployeeId(employees, { lotId: matchedLotId, preferredRole: 'cashier' });
+  }, [renewEmpOverride, employees, catalogs?.lots, renewTarget?.loaiphuongtien]);
 
   const invalidatePassData = () => {
     void queryClient.invalidateQueries({ queryKey: ['passes'] });
@@ -157,6 +173,7 @@ export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
           card_id: vars.payload.cardId,
           months: vars.payload.months,
           payment_method: vars.payload.payMethod,
+          employee_id: vars.payload.employeeId,
         }),
       }),
     onSuccess: (res, vars) => {
@@ -173,7 +190,7 @@ export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
         checkoutTime: new Date().toISOString(),
         paymentMethod: vars.payload.payMethod,
         amount: vars.payload.estimatedAmount,
-        operatorName: user.full_name,
+        operatorName: vars.payload.employeeName,
       });
       invalidatePassData();
     },
@@ -186,7 +203,11 @@ export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
         `/api/v1/passes/${vars.pass.id}/renew`,
         {
           method: 'POST',
-          body: JSON.stringify({ months: vars.renewM, payment_method: vars.method }),
+          body: JSON.stringify({
+            months: vars.renewM,
+            payment_method: vars.method,
+            employee_id: vars.employeeId,
+          }),
         },
       ),
     onSuccess: (res, vars) => {
@@ -201,9 +222,10 @@ export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
         checkoutTime: new Date().toISOString(),
         paymentMethod: vars.method,
         amount: res.amount,
-        operatorName: user.full_name,
+        operatorName: vars.employeeName,
       });
       setRenewTarget(null);
+      setRenewEmpOverride('');
       invalidatePassData();
     },
     onError: (err: unknown) => notify('err', getErrorMessage(err)),
@@ -286,8 +308,6 @@ export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
     onError: (err: unknown) => notify('err', getErrorMessage(err)),
   });
 
-  const canManage = user.role === 'ADMIN' || user.role === 'ACCOUNTANT';
-  const isAdmin = user.role === 'ADMIN';
   const passItems = passesQuery.data?.items ?? [];
   const assetsFormId = `${prefix}-assets-form`;
   const createTariffFormId = `${prefix}-create-tariff-form`;
@@ -363,7 +383,7 @@ export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {section === 'tariffs' && canManage && (
+          {section === 'tariffs' && (
             <Button
               variant="secondary"
               size="md"
@@ -556,11 +576,12 @@ export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
                                 setRenewTarget(p);
                                 setRenewMonths(1);
                                 setRenewPayMethod('Tiền mặt');
+                                setRenewEmpOverride('');
                               }}
                             >
                               Gia hạn
                             </Button>
-                            {canManage && isActive && (
+                            {isActive && (
                               <>
                                 <button
                                   type="button"
@@ -612,8 +633,8 @@ export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
       ) : (
         <TariffMatrix
           tariffs={tariffs}
-          canManage={canManage}
-          canDelete={isAdmin}
+          canManage
+          canDelete
           onEditTariff={(t) => {
             setEditTariffTarget(t);
             setEditTariffPrice(t.dongia);
@@ -653,14 +674,19 @@ export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
             <Button
               variant="primary"
               loading={renewMutation.isPending}
-              onClick={() =>
-                renewTarget &&
+              disabled={!effectiveRenewEmpId}
+              onClick={() => {
+                if (!renewTarget || !effectiveRenewEmpId) return;
+                const empId = Number(effectiveRenewEmpId);
+                const emp = employees.find((e) => e.id === empId);
                 renewMutation.mutate({
                   pass: renewTarget,
                   renewM: renewMonths,
                   method: renewPayMethod,
-                })
-              }
+                  employeeId: empId,
+                  employeeName: emp?.hoten,
+                });
+              }}
             >
               {renewMutation.isPending ? 'Đang gia hạn...' : 'Xác nhận gia hạn'}
             </Button>
@@ -697,6 +723,32 @@ export function PassesTariffsPage({ user, onPrint }: PassesTariffsPageProps) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor={`${prefix}-renew-emp`}
+                className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+              >
+                <UserCheck className="h-3.5 w-3.5 text-slate-400" />
+                Nhân viên thu phí
+              </label>
+              <select
+                id={`${prefix}-renew-emp`}
+                value={effectiveRenewEmpId}
+                onChange={(e) => setRenewEmpOverride(Number(e.target.value))}
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-input dark:bg-slate-800/90 px-3 py-2 text-xs font-medium"
+              >
+                {employees.length === 0 ? (
+                  <option value="">Chưa có nhân viên</option>
+                ) : (
+                  employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {formatEmployeeOption(emp)}
+                    </option>
+                  ))
+                )}
+              </select>
             </div>
 
             <div>

@@ -6,13 +6,9 @@ from typing import Any, Optional
 from core.exceptions import ConflictError, NotFoundError, ValidationError
 from services.db_service import DBService
 from services.domain.base import (
-    AuditActor,
-    mask_cccd,
-    mask_phone,
     normalize_plate,
     require_text,
     vn_today,
-    write_audit_in_tx,
 )
 
 
@@ -32,8 +28,46 @@ class DirectoryService:
     # Employees
     # ------------------------------------------------------------------
 
-    def get_employees(self, redact_pii: bool = False) -> list[dict[str, Any]]:
-        rows = self.db.fetch_all(
+    def resolve_employee_id(
+        self,
+        requested_employee_id: Optional[int],
+        lot_id: Optional[int] = None,
+        preferred_role: Optional[str] = None,
+    ) -> int:
+        """Validate explicit employee ID or pick a default by lot and preferred role."""
+        if requested_employee_id is not None:
+            row = self.db.fetch_one(
+                "SELECT id FROM nhanvien WHERE id = %s LIMIT 1",
+                (requested_employee_id,),
+            )
+            if row is None:
+                raise NotFoundError("Nhân viên không tồn tại.")
+            return int(row["id"])
+
+        rows = self.db.fetch_all("SELECT id, idbdx, chucvu FROM nhanvien ORDER BY id ASC")
+        if not rows:
+            raise ValidationError("Hệ thống chưa có dữ liệu nhân viên.")
+
+        role_kw = (preferred_role or "").strip().lower()
+        if lot_id is not None and role_kw:
+            for r in rows:
+                if (
+                    r.get("idbdx") is not None
+                    and int(r["idbdx"]) == int(lot_id)
+                    and role_kw in str(r.get("chucvu") or "").lower()
+                ):
+                    return int(r["id"])
+        if role_kw:
+            for r in rows:
+                if role_kw in str(r.get("chucvu") or "").lower():
+                    return int(r["id"])
+        for r in rows:
+            if "quản lý" in str(r.get("chucvu") or "").lower():
+                return int(r["id"])
+        return int(rows[0]["id"])
+
+    def get_employees(self) -> list[dict[str, Any]]:
+        return self.db.fetch_all(
             """
             SELECT nv.id, nv.hoten, nv.chucvu, nv.sdt, nv.idbdx, b.tenbaido
             FROM nhanvien nv
@@ -41,17 +75,12 @@ class DirectoryService:
             ORDER BY nv.id
             """
         )
-        if redact_pii:
-            for row in rows:
-                row["sdt"] = mask_phone(row.get("sdt"))
-        return rows
 
     def get_employees_detail(
         self,
         keyword: Optional[str] = None,
         limit: Optional[int] = None,
         offset: int = 0,
-        redact_pii: bool = False,
     ) -> list[dict[str, Any]]:
         conditions: list[str] = []
         params: list[Any] = []
@@ -65,7 +94,7 @@ class DirectoryService:
             limit_clause = "LIMIT %s OFFSET %s"
             params.extend([int(limit), max(0, int(offset))])
 
-        rows = self.db.fetch_all(
+        return self.db.fetch_all(
             f"""
             SELECT
                 nv.id,
@@ -87,14 +116,6 @@ class DirectoryService:
             """,
             params or None,
         )
-        if redact_pii:
-            for row in rows:
-                row["cccd"] = mask_cccd(row.get("cccd"))
-                row["sdt"] = mask_phone(row.get("sdt"))
-                row["diachi"] = None
-                row["email"] = None
-                row["ngaysinh"] = None
-        return rows
 
     def create_employee(
         self,
@@ -107,7 +128,6 @@ class DirectoryService:
         start_date: Optional[date] = None,
         email: str = "",
         cccd: str = "",
-        actor: Optional[AuditActor] = None,
     ) -> int:
         clean_name = require_text(full_name, "Họ tên", 60)
         clean_addr = (address or "").strip()[:255] or "Chưa cập nhật"
@@ -123,23 +143,17 @@ class DirectoryService:
                 cursor.execute("SELECT id FROM nhanvien WHERE cccd = %s LIMIT 1", (clean_cccd,))
                 if cursor.fetchone() is not None:
                     raise ConflictError(f"CCCD {clean_cccd} đã tồn tại trong danh sách nhân viên.")
+            cursor.execute("SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM nhanvien FOR UPDATE")
+            row_id = cursor.fetchone()
+            next_id = int((row_id or {}).get("next_id") or 1)
             cursor.execute(
                 """
-                INSERT INTO nhanvien (idbdx, hoten, diachi, ngaysinh, chucvu, sdt, ngaybatdau, email, cccd)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO nhanvien (id, idbdx, hoten, diachi, ngaysinh, chucvu, sdt, ngaybatdau, email, cccd)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (lot_id, clean_name, clean_addr, dob, clean_role, clean_phone, started, clean_email, clean_cccd),
+                (next_id, lot_id, clean_name, clean_addr, dob, clean_role, clean_phone, started, clean_email, clean_cccd),
             )
-            emp_id = int(cursor.lastrowid)
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "CREATE_EMPLOYEE",
-                "nhanvien",
-                emp_id,
-                {"full_name": clean_name, "role": clean_role, "lot_id": lot_id},
-            )
-            return emp_id
+            return next_id
 
     def update_employee(
         self,
@@ -151,7 +165,6 @@ class DirectoryService:
         phone: str,
         email: str = "",
         cccd: str = "",
-        actor: Optional[AuditActor] = None,
     ) -> None:
         clean_name = require_text(full_name, "Họ tên", 60)
         clean_addr = (address or "").strip()[:255] or "Chưa cập nhật"
@@ -180,16 +193,8 @@ class DirectoryService:
                 """,
                 (lot_id, clean_name, clean_addr, clean_role, clean_phone, clean_email, clean_cccd, emp_id),
             )
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "UPDATE_EMPLOYEE",
-                "nhanvien",
-                emp_id,
-                {"full_name": clean_name, "role": clean_role, "lot_id": lot_id},
-            )
 
-    def delete_employee(self, emp_id: int, actor: Optional[AuditActor] = None) -> None:
+    def delete_employee(self, emp_id: int) -> None:
         with self.db.transaction() as cursor:
             cursor.execute("SELECT id FROM nhanvien WHERE id = %s FOR UPDATE", (emp_id,))
             if cursor.fetchone() is None:
@@ -197,14 +202,11 @@ class DirectoryService:
             for table, msg in (
                 ("luotdo", "Nhân viên đã ghi nhận lượt đỗ, không thể xóa."),
                 ("thanhtoan", "Nhân viên đã ghi nhận thanh toán, không thể xóa."),
-                ("taikhoan", "Nhân viên đang gắn với tài khoản đăng nhập, không thể xóa."),
-                ("ca_lam_viec", "Nhân viên đã có lịch sử ca làm việc, không thể xóa."),
             ):
                 cursor.execute(f"SELECT id FROM {table} WHERE idnv = %s LIMIT 1", (emp_id,))
                 if cursor.fetchone() is not None:
                     raise ConflictError(msg)
             cursor.execute("DELETE FROM nhanvien WHERE id = %s", (emp_id,))
-            write_audit_in_tx(cursor, actor, "DELETE_EMPLOYEE", "nhanvien", emp_id)
 
     # ------------------------------------------------------------------
     # Customers & Walk-in Visitors
@@ -215,7 +217,6 @@ class DirectoryService:
         keyword: Optional[str] = None,
         limit: Optional[int] = None,
         offset: int = 0,
-        redact_pii: bool = False,
     ) -> list[dict[str, Any]]:
         today_str = vn_today().strftime("%Y-%m-%d")
         conditions: list[str] = []
@@ -230,7 +231,7 @@ class DirectoryService:
             limit_clause = "LIMIT %s OFFSET %s"
             params.extend([int(limit), max(0, int(offset))])
 
-        rows = self.db.fetch_all(
+        return self.db.fetch_all(
             f"""
             SELECT
                 kh.id,
@@ -256,11 +257,6 @@ class DirectoryService:
             """,
             params,
         )
-        if redact_pii:
-            for row in rows:
-                row["cccd"] = mask_cccd(row.get("cccd"))
-                row["sdt"] = mask_phone(row.get("sdt"))
-        return rows
 
     def update_customer(
         self,
@@ -269,7 +265,6 @@ class DirectoryService:
         phone: str,
         cccd: str,
         customer_type_id: int,
-        actor: Optional[AuditActor] = None,
     ) -> None:
         clean_name = require_text(full_name, "Họ tên khách hàng", 60)
         clean_phone = require_text(phone, "Số điện thoại", 20)
@@ -292,16 +287,8 @@ class DirectoryService:
                 """,
                 (clean_name, clean_phone, clean_cccd, customer_type_id, customer_id),
             )
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "UPDATE_CUSTOMER",
-                "khachhang",
-                customer_id,
-                {"full_name": clean_name, "customer_type_id": customer_type_id},
-            )
 
-    def delete_customer(self, customer_id: int, actor: Optional[AuditActor] = None) -> None:
+    def delete_customer(self, customer_id: int) -> None:
         with self.db.transaction() as cursor:
             cursor.execute("SELECT id FROM khachhang WHERE id = %s FOR UPDATE", (customer_id,))
             if cursor.fetchone() is None:
@@ -310,7 +297,6 @@ class DirectoryService:
             if cursor.fetchone() is not None:
                 raise ConflictError("Khách hàng đã có lịch sử vé tháng, không thể xóa.")
             cursor.execute("DELETE FROM khachhang WHERE id = %s", (customer_id,))
-            write_audit_in_tx(cursor, actor, "DELETE_CUSTOMER", "khachhang", customer_id)
 
     def get_walkin_visitors(
         self,
@@ -502,7 +488,7 @@ class DirectoryService:
             params,
         )
 
-    def create_card(self, code: str, actor: Optional[AuditActor] = None) -> int:
+    def create_card(self, code: str) -> int:
         clean_code = require_text(code, "Mã thẻ", 10)
         with self.db.transaction() as cursor:
             cursor.execute("SELECT id FROM thexe WHERE maso = %s LIMIT 1", (clean_code,))
@@ -512,16 +498,9 @@ class DirectoryService:
                 "INSERT INTO thexe (maso, trangthai) VALUES (%s, 1)",
                 (clean_code,),
             )
-            card_id = int(cursor.lastrowid)
-            write_audit_in_tx(cursor, actor, "CREATE_CARD", "thexe", card_id, {"code": clean_code})
-            return card_id
+            return int(cursor.lastrowid)
 
-    def set_card_status(
-        self,
-        card_id: int,
-        status: int,
-        actor: Optional[AuditActor] = None,
-    ) -> None:
+    def set_card_status(self, card_id: int, status: int) -> None:
         if status not in (1, 2):
             raise ValidationError("Trạng thái thẻ chỉ nhận 1 (Sẵn sàng) hoặc 2 (Mất / Hỏng).")
         with self.db.transaction() as cursor:
@@ -532,16 +511,8 @@ class DirectoryService:
             if int(card["trangthai"]) == 0:
                 raise ConflictError("Thẻ đang gắn với xe trong bãi, không thể đổi trạng thái trực tiếp.")
             cursor.execute("UPDATE thexe SET trangthai = %s WHERE id = %s", (status, card_id))
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "SET_CARD_STATUS",
-                "thexe",
-                card_id,
-                {"old_status": card["trangthai"], "new_status": status},
-            )
 
-    def delete_card(self, card_id: int, actor: Optional[AuditActor] = None) -> None:
+    def delete_card(self, card_id: int) -> None:
         with self.db.transaction() as cursor:
             cursor.execute("SELECT id, trangthai FROM thexe WHERE id = %s FOR UPDATE", (card_id,))
             card = cursor.fetchone()
@@ -556,7 +527,6 @@ class DirectoryService:
             if cursor.fetchone() is not None:
                 raise ConflictError("Thẻ đang/đã gắn với vé tháng, không thể xóa.")
             cursor.execute("DELETE FROM thexe WHERE id = %s", (card_id,))
-            write_audit_in_tx(cursor, actor, "DELETE_CARD", "thexe", card_id)
 
     # ------------------------------------------------------------------
     # Vehicles (No Cartesian JOIN!)
@@ -637,7 +607,6 @@ class DirectoryService:
         vehicle_id: int,
         plate: str,
         vehicle_type_id: int,
-        actor: Optional[AuditActor] = None,
     ) -> None:
         clean_plate = normalize_plate(plate)
         with self.db.transaction() as cursor:
@@ -654,16 +623,8 @@ class DirectoryService:
                 "UPDATE phuongtien SET bienso = %s, idlpt = %s WHERE id = %s",
                 (clean_plate, vehicle_type_id, vehicle_id),
             )
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "UPDATE_VEHICLE",
-                "phuongtien",
-                vehicle_id,
-                {"plate": clean_plate, "vehicle_type_id": vehicle_type_id},
-            )
 
-    def delete_vehicle(self, vehicle_id: int, actor: Optional[AuditActor] = None) -> None:
+    def delete_vehicle(self, vehicle_id: int) -> None:
         with self.db.transaction() as cursor:
             cursor.execute("SELECT id FROM phuongtien WHERE id = %s FOR UPDATE", (vehicle_id,))
             if cursor.fetchone() is None:
@@ -675,4 +636,3 @@ class DirectoryService:
             if cursor.fetchone() is not None:
                 raise ConflictError("Phương tiện đã gắn với vé tháng, không thể xóa.")
             cursor.execute("DELETE FROM phuongtien WHERE id = %s", (vehicle_id,))
-            write_audit_in_tx(cursor, actor, "DELETE_VEHICLE", "phuongtien", vehicle_id)

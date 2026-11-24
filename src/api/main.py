@@ -6,8 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-import anyio
-from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket
+from fastapi import FastAPI, HTTPException, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,22 +15,19 @@ _SRC_DIR = str(Path(__file__).resolve().parents[1])
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
-from api.deps import get_auth_service, get_db
+from api.deps import get_db
 from api.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
 from api.v1 import build_v1_router
 from api.v1.routers import health as health_router
 from api.ws import handle_live_websocket, ws_manager
 from core.config import get_settings
 from core.exceptions import (
-    AuthenticationError,
     ConflictError,
     DatabaseError,
     NotFoundError,
     ValidationError,
 )
 from core.logging import configure_logging
-from services.auth_service import AuthService
-from services.migration_service import MigrationService
 
 logger = logging.getLogger(__name__)
 _FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -47,24 +43,10 @@ def _error_payload(request: Request, code: str, detail: str) -> dict[str, str]:
     }
 
 
-def _startup_migrate_and_seed() -> None:
-    db = get_db()
-    MigrationService(db).ensure_production_schema()
-    AuthService(db, settings=get_settings()).ensure_default_accounts()
-
-
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     settings = get_settings()
     configure_logging(settings.log_level)
-    try:
-        await anyio.to_thread.run_sync(_startup_migrate_and_seed)
-    except Exception as exc:
-        if settings.app_env == "production":
-            logger.exception("Critical startup migration/seed failure in production")
-            raise
-        logger.warning("Startup migration/seed skipped or failed (%s): %s", settings.app_env, exc)
-
     try:
         yield
     finally:
@@ -80,7 +62,7 @@ def create_app() -> FastAPI:
     application = FastAPI(
         title="Smart Parking System API",
         version=settings.app_version,
-        description="Production REST v1 & WebSocket API for Smart Parking Management (PTIT)",
+        description="REST v1 & WebSocket API for Smart Parking Management (PTIT - 13-table ERD)",
         lifespan=lifespan,
     )
 
@@ -91,7 +73,7 @@ def create_app() -> FastAPI:
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        allow_headers=["Content-Type", "X-Request-ID"],
     )
 
     # Specific subclasses of ValidationError must be registered before ValidationError
@@ -107,14 +89,6 @@ def create_app() -> FastAPI:
     async def validation_error_handler(request: Request, exc: ValidationError) -> JSONResponse:
         return JSONResponse(
             status_code=400, content=_error_payload(request, "VALIDATION_ERROR", str(exc))
-        )
-
-    @application.exception_handler(AuthenticationError)
-    async def auth_error_handler(request: Request, exc: AuthenticationError) -> JSONResponse:
-        return JSONResponse(
-            status_code=401,
-            content=_error_payload(request, "UNAUTHORIZED", str(exc)),
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
     @application.exception_handler(DatabaseError)
@@ -160,11 +134,8 @@ def create_app() -> FastAPI:
     application.include_router(v1_router, prefix="/api", include_in_schema=False)
 
     @application.websocket("/ws/live")
-    async def websocket_live(
-        ws: WebSocket,
-        auth: AuthService = Depends(get_auth_service),
-    ) -> None:
-        await handle_live_websocket(ws, auth)
+    async def websocket_live(ws: WebSocket) -> None:
+        await handle_live_websocket(ws)
 
     # Serve compiled React SPA assets + History API catch-all fallback
     if _FRONTEND_DIST.exists():

@@ -11,16 +11,14 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from core.exceptions import ConflictError, NotFoundError, ValidationError
 from services.db_service import DBConfig, DBService
 from services.domain.base import (
-    AuditActor,
     normalize_payment_method,
     normalize_plate,
     vn_day_utc_bounds,
 )
-from services.migration_service import MigrationService
 from services.parking_service import ParkingService
 
 
-class TestDBServiceAndMigrations(unittest.TestCase):
+class TestDBService(unittest.TestCase):
     def test_db_config_masks_password_in_repr(self) -> None:
         cfg = DBConfig(host="tidb.local", database="dbptit", user="admin", password="super-secret-value")
         self.assertNotIn("super-secret-value", repr(cfg))
@@ -56,82 +54,12 @@ class TestDBServiceAndMigrations(unittest.TestCase):
             self.assertTrue(acquired)
             row = svc.fetch_one("SELECT 1 AS ok")
             self.assertEqual(row, {"ok": 1})
-            # Connection MUST stay pinned and NOT returned to pool mid-lock
             mock_conn.close.assert_not_called()
 
-        # Exactly one connection borrowed, released once after RELEASE_LOCK
         mock_pool.get_connection.assert_called_once()
         mock_conn.close.assert_called_once()
         self.assertIn("GET_LOCK", lock_cur.execute.call_args[0][0])
         self.assertIn("RELEASE_LOCK", rel_cur.execute.call_args[0][0])
-
-    def test_migration_service_runs_all_6_steps_and_is_idempotent(self) -> None:
-        mock_db = MagicMock(spec=DBService)
-        mock_db.advisory_lock.return_value.__enter__.return_value = True
-        existing_legacy_tables = {
-            "thanhtoan",
-            "phuongtien",
-            "baidoxe",
-            "khuvucdo",
-            "banggia",
-            "loaikhachhang",
-            "loaiphuongtien",
-            "khachhang",
-            "nhanvien",
-            "luotdo",
-            "vethang",
-        }
-        created_tables: set[str] = set()
-
-        def fake_fetch_one(sql: str, params=None):
-            if "information_schema.tables" in sql:
-                tname = params[0]
-                return {"cnt": 1 if (tname in existing_legacy_tables or tname in created_tables) else 0}
-            if "information_schema.columns" in sql and "COUNT(*)" in sql:
-                return {"cnt": 0}
-            if "information_schema.columns" in sql:
-                table, col = params[0], params[1]
-                if table == "thanhtoan" and col == "idld":
-                    return {"data_type": "int", "max_len": None, "is_nullable": "NO", "extra": ""}
-                if table == "thanhtoan" and col == "loaithanhtoan":
-                    return {"data_type": "tinyint", "max_len": None, "is_nullable": "YES", "extra": ""}
-                if table == "nhanvien" and col == "id":
-                    return {"data_type": "int", "max_len": None, "is_nullable": "NO", "extra": ""}
-                return {"data_type": "varchar", "max_len": 10, "is_nullable": "YES", "extra": ""}
-            if "information_schema.statistics" in sql:
-                return {"cnt": 0}
-            if "HAVING COUNT(*) > 1" in sql:
-                return {"cnt": 0}
-            return {"cnt": 0}
-
-        def fake_exec(sql: str, params=None):
-            if "CREATE TABLE `" in sql:
-                tname = sql.split("CREATE TABLE `", 1)[1].split("`", 1)[0]
-                created_tables.add(tname)
-                self.assertIn("COLLATE=utf8mb4_bin", sql)
-            return 1
-
-        mock_db.fetch_one.side_effect = fake_fetch_one
-        mock_db.execute_non_query.side_effect = fake_exec
-        mock_db.fetch_all.return_value = []
-
-        applied = MigrationService(mock_db).ensure_production_schema()
-        mock_db.advisory_lock.assert_called_once()
-        self.assertIn("create_table_taikhoan", applied)
-        self.assertIn("create_table_refresh_tokens", applied)
-        self.assertIn("nullable_thanhtoan_idld", applied)
-        self.assertIn("normalize_thanhtoan_loaithanhtoan", applied)
-        self.assertIn("widen_phuongtien_bienso", applied)
-        self.assertIn("nhanvien_id_auto_increment", applied)
-        self.assertIn("add_uk_thanhtoan_idld", applied)
-        self.assertIn("add_idx_thanhtoan_shift_recon", applied)
-
-        # Second run with all 6 versions recorded must be a no-op
-        mock_db.execute_non_query.reset_mock()
-        mock_db.fetch_all.return_value = [{"version": f"00{i}"} for i in range(1, 7)]
-        second = MigrationService(mock_db).ensure_production_schema()
-        self.assertEqual(second, [])
-        mock_db.execute_non_query.assert_not_called()
 
 
 class TestParkingService(unittest.TestCase):
@@ -193,25 +121,8 @@ class TestParkingService(unittest.TestCase):
         self.assertTrue(m_quote.is_monthly_pass)
         self.assertEqual(m_quote.monthly_pass_id, 99)
 
-        # Verify operator cross-lot quote rejection
-        self.mock_db.fetch_one.side_effect = [
-            {
-                "id": 10,
-                "giovao": checkin_utc,
-                "idpt": 5,
-                "bienso": "29A12345",
-                "loaiphuongtien": "xe máy",
-                "loaive": "ngày",
-                "dongia": 5000,
-                "idbdx": 2,
-            }
-        ]
-        with self.assertRaises(ValidationError):
-            self.service.get_fee_quote(10, operator_lot_id=1)
-
     def test_expired_monthly_pass_bills_daily_tariff_instead_of_free_or_monthly_rate(self) -> None:
         checkin_utc = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=30)
-        # Check-in occurred with monthly tariff (dongia=240000), but pass expired before checkout
         self.mock_db.fetch_one.side_effect = [
             {
                 "id": 12,
@@ -230,11 +141,9 @@ class TestParkingService(unittest.TestCase):
         quote = self.service.get_fee_quote(12)
         self.assertFalse(quote.is_monthly_pass)
         self.assertIsNone(quote.monthly_pass_id)
-        # 30 hours -> 2 days * 20,000 VND (NOT 0 VND and NOT 2 * 240,000 VND!)
         self.assertEqual(quote.amount, 40000)
         self.assertEqual(quote.ticket_type, "Vé ngày (Vé tháng hết hạn)")
 
-        # Verify the same fallback inside transactional check_out_vehicle (single-table luotdo FOR UPDATE)
         cursor = MagicMock()
         cursor.fetchone.side_effect = [
             {
@@ -253,16 +162,15 @@ class TestParkingService(unittest.TestCase):
                 "dongia": 240000,
                 "idbdx": 1,
             },
-            None,               # not already paid
-            None,               # pass expired
-            {"dongia": 20000},  # daily tariff lookup in TX
+            None,
+            None,
+            {"dongia": 20000},
         ]
         self.mock_db.transaction.return_value.__enter__.return_value = cursor
         paid_quote = self.service.check_out_vehicle(12, employee_id=3, payment_method="Tiền mặt")
         self.assertFalse(paid_quote.is_monthly_pass)
         self.assertEqual(paid_quote.amount, 40000)
         self.assertEqual(paid_quote.ticket_type, "Vé ngày (Vé tháng hết hạn)")
-        # Ensure no FOR UPDATE lock is taken on shared lookup tables (loaiphuongtien/banggia)
         for call in cursor.execute.call_args_list:
             sql = call.args[0]
             if "FOR UPDATE" in sql:
@@ -272,32 +180,30 @@ class TestParkingService(unittest.TestCase):
     def test_check_in_vehicle_rejects_occupied_slot_and_pass_bound_card(self) -> None:
         mock_cursor = MagicMock()
         mock_cursor.fetchone.side_effect = [
-            None,                                     # phuongtien FOR UPDATE
-            {"id": 1, "idkvd": 1, "trangthai": 0},    # slot occupied
+            None,
+            {"id": 1, "idkvd": 1, "trangthai": 0},
         ]
         self.mock_db.transaction.return_value.__enter__.return_value = mock_cursor
         with self.assertRaises(ConflictError):
             self.service.check_in_vehicle("30G45678", 3, 1, 6, 1)
 
-        # Card bound to another vehicle's monthly pass must be rejected
         mock_cursor2 = MagicMock()
         mock_cursor2.fetchone.side_effect = [
-            {"id": 7, "idlpt": 3},                    # phuongtien FOR UPDATE
-            {"id": 1, "idkvd": 1, "trangthai": 1},    # slot free
-            {"id": 6, "trangthai": 1},                # card status=1
-            None,                                     # no active turn for vehicle
-            {"id": 100, "idpt": 999},                 # card belongs to another vehicle's pass!
+            {"id": 7, "idlpt": 3},
+            {"id": 1, "idkvd": 1, "trangthai": 1},
+            {"id": 6, "trangthai": 1},
+            None,
+            {"id": 100, "idpt": 999},
         ]
         self.mock_db.transaction.return_value.__enter__.return_value = mock_cursor2
         with self.assertRaises(ConflictError):
             self.service.check_in_vehicle("30G45678", 3, 1, 6, 1)
 
-    def test_check_in_vehicle_atomic_success_with_audit(self) -> None:
+    def test_check_in_vehicle_atomic_success(self) -> None:
         mock_cursor = MagicMock()
         mock_cursor.fetchone.side_effect = [
             {"id": 7, "idlpt": 3},                    # phuongtien FOR UPDATE
             {"id": 1, "idkvd": 2, "trangthai": 1},    # slot FOR UPDATE
-            {"idbdx": 1},                             # khuvucdo lot lookup for operator_lot_id
             {"id": 6, "trangthai": 1},                # card FOR UPDATE
             None,                                     # no active turn
             None,                                     # card not bound to other pass
@@ -308,11 +214,10 @@ class TestParkingService(unittest.TestCase):
         mock_cursor.lastrowid = 42
         self.mock_db.transaction.return_value.__enter__.return_value = mock_cursor
 
-        actor = AuditActor(account_id=1, username="admin", ip_address="127.0.0.1")
-        turn_id = self.service.check_in_vehicle("30G45678", 3, 1, 6, 1, operator_lot_id=1, actor=actor)
+        turn_id = self.service.check_in_vehicle("30G45678", 3, 1, 6, 1)
         self.assertEqual(turn_id, 42)
         executed = [c.args[0] for c in mock_cursor.execute.call_args_list]
-        self.assertTrue(any("INSERT INTO audit_logs" in sql for sql in executed))
+        self.assertFalse(any("audit_logs" in sql for sql in executed))
 
     def test_check_out_persists_payment_method_and_lost_card_replacement(self) -> None:
         checkin_utc = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
@@ -334,8 +239,8 @@ class TestParkingService(unittest.TestCase):
                 "dongia": 5000,
                 "idbdx": 1,
             },
-            None,  # not already paid
-            None,  # no active monthly pass
+            None,
+            None,
         ]
         self.mock_db.transaction.return_value.__enter__.return_value = cursor
 
@@ -350,13 +255,11 @@ class TestParkingService(unittest.TestCase):
         self.assertEqual(quote.payment_method, "Chuyển khoản")
         insert_calls = [c for c in cursor.execute.call_args_list if "INSERT INTO thanhtoan" in c.args[0]]
         self.assertEqual(len(insert_calls), 1)
-        # Parameter index 4 is loaithanhtoan -> must be 'Chuyển khoản', NEVER integer 0/1
         self.assertEqual(insert_calls[0].args[1][4], "Chuyển khoản")
 
         card_updates = [c for c in cursor.execute.call_args_list if "UPDATE thexe SET trangthai" in c.args[0]]
         self.assertEqual(card_updates[0].args[1], (2, 10))
 
-        # Verify monthly-pass lost-card replacement locks cards in sorted order and rebinds vethang.idtx
         rep_cursor = MagicMock()
         rep_cursor.fetchone.side_effect = [
             {
@@ -375,13 +278,13 @@ class TestParkingService(unittest.TestCase):
                 "dongia": 120000,
                 "idbdx": 1,
             },
-            None,          # not already paid
-            {"id": 77},    # active monthly pass #77
-            None,          # replacement card not bound to another pass
+            None,
+            {"id": 77},
+            None,
         ]
         rep_cursor.fetchall.return_value = [
-            {"id": 12, "trangthai": 1},  # replacement card (lower id)
-            {"id": 30, "trangthai": 0},  # lost card (higher id)
+            {"id": 12, "trangthai": 1},
+            {"id": 30, "trangthai": 0},
         ]
         self.mock_db.transaction.return_value.__enter__.return_value = rep_cursor
         rep_quote = self.service.check_out_vehicle(
@@ -424,21 +327,65 @@ class TestParkingService(unittest.TestCase):
                 "dongia": 5000,
                 "idbdx": 1,
             },
-            {"id": 99},  # already paid
+            {"id": 99},
         ]
         self.mock_db.transaction.return_value.__enter__.return_value = cursor
         with self.assertRaises(ConflictError):
             self.service.check_out_vehicle(10, 1)
 
+    def test_employee_creation_deletion_and_resolution(self) -> None:
+        # create_employee allocates MAX(id)+1 explicitly inside transaction (nhanvien has no AUTO_INCREMENT)
+        create_cur = MagicMock()
+        create_cur.fetchone.side_effect = [None, {"next_id": 2004}]
+        self.mock_db.transaction.return_value.__enter__.return_value = create_cur
+        eid = self.service.create_employee(
+            lot_id=2,
+            full_name="Nguyễn Bảo Vệ Mới",
+            role="Bảo vệ",
+            phone="0912345999",
+            cccd="001099002004",
+        )
+        self.assertEqual(eid, 2004)
+        insert_sql = [c.args[0] for c in create_cur.execute.call_args_list if "INSERT INTO nhanvien" in c.args[0]][0]
+        self.assertIn("(id, idbdx, hoten", insert_sql)
+
+        # delete_employee ONLY checks luotdo and thanhtoan (never taikhoan or ca_lam_viec)
+        del_cur = MagicMock()
+        del_cur.fetchone.side_effect = [{"id": 2004}, None, None]
+        self.mock_db.transaction.return_value.__enter__.return_value = del_cur
+        self.service.delete_employee(2004)
+        checked_sql = " ".join(c.args[0] for c in del_cur.execute.call_args_list)
+        self.assertNotIn("taikhoan", checked_sql)
+        self.assertNotIn("ca_lam_viec", checked_sql)
+
+        # resolve_employee_id validates explicit ID, raises 404 when missing, and defaults by lot + role
+        self.mock_db.fetch_one.return_value = {"id": 2001}
+        self.assertEqual(self.service.resolve_employee_id(2001), 2001)
+
+        self.mock_db.fetch_one.return_value = None
+        with self.assertRaises(NotFoundError):
+            self.service.resolve_employee_id(9999)
+
+        self.mock_db.fetch_all.return_value = [
+            {"id": 3, "idbdx": 3, "chucvu": "Quản lý"},
+            {"id": 1001, "idbdx": 1, "chucvu": "Bảo vệ"},
+            {"id": 1002, "idbdx": 2, "chucvu": "Bảo vệ"},
+            {"id": 2002, "idbdx": 2, "chucvu": "Thu ngân"},
+        ]
+        self.assertEqual(self.service.resolve_employee_id(None, lot_id=2, preferred_role="bảo vệ"), 1002)
+        self.assertEqual(self.service.resolve_employee_id(None, lot_id=2, preferred_role="thu ngân"), 2002)
+        self.assertEqual(self.service.resolve_employee_id(None, lot_id=99, preferred_role="thu ngân"), 2002)
+        self.assertEqual(self.service.resolve_employee_id(None, lot_id=99, preferred_role="kỹ thuật"), 3)
+
     def test_register_monthly_pass_checks_overlap_and_records_payment(self) -> None:
         cursor = MagicMock()
         cursor.fetchone.side_effect = [
-            {"id": 4, "dongia": 100000},  # monthly tariff
-            {"id": 3, "trangthai": 1},    # card available
-            None,                         # card unbound
-            None,                         # new customer
-            None,                         # new vehicle
-            None,                         # no overlapping active pass for vehicle
+            {"id": 4, "dongia": 100000},
+            {"id": 3, "trangthai": 1},
+            None,
+            None,
+            None,
+            None,
         ]
         cursor.lastrowid = 77
         self.mock_db.transaction.return_value.__enter__.return_value = cursor
@@ -480,7 +427,6 @@ class TestParkingService(unittest.TestCase):
         self.assertIn("NOT EXISTS", query)
         self.assertIn("FROM vethang vt", query)
 
-        # Gate POS mode: exclude_pass_bound=False must return pass_plate for owner auto-match
         self.service.get_cards(only_available=True, exclude_pass_bound=False)
         gate_query = self.mock_db.fetch_all.call_args[0][0]
         self.assertIn("pass_plate", gate_query)
@@ -517,7 +463,6 @@ class TestParkingService(unittest.TestCase):
         ]
         self.mock_db.transaction.return_value.__enter__.return_value = cursor
         self.service.move_active_turn_slot(30, 51)
-        # First query locks ONLY luotdo (never vitrido before ascending-ID lock)
         first_sql = cursor.execute.call_args_list[0].args[0]
         self.assertNotIn("JOIN vitrido", first_sql)
         lock_call = [c for c in cursor.execute.call_args_list if "WHERE id IN (%s, %s)" in c.args[0]][0]
@@ -542,11 +487,6 @@ class TestParkingService(unittest.TestCase):
         self.mock_db.transaction.return_value.__enter__.return_value = cursor
         with self.assertRaises(NotFoundError):
             self.service.update_payment_status(999, "Hoàn tiền")
-
-    def test_legacy_streamlit_helpers_removed(self) -> None:
-        self.assertFalse(hasattr(self.service, "seed_demo_data"))
-        self.assertFalse(hasattr(self.service, "build_ticket_html"))
-        self.assertFalse(hasattr(self.service, "build_receipt_html"))
 
 
 if __name__ == "__main__":

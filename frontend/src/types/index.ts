@@ -1,24 +1,13 @@
-export type UserRole = 'ADMIN' | 'ACCOUNTANT' | 'OPERATOR';
 export type PaymentMethod = 'Tiền mặt' | 'Chuyển khoản';
 export type PaymentStatus = 'Thành công' | 'Hoàn tiền' | 'Thất bại';
 
-export interface AuthUser {
-  account_id: number;
-  employee_id: number;
-  username: string;
-  full_name: string;
-  role: UserRole;
-  lot_id: number | null;
-  token_version?: number;
-  must_change_password?: boolean;
-}
-
-export interface TokenResponse {
-  access_token: string;
-  refresh_token: string | null;
-  token_type: string;
-  expires_in: number;
-  user: AuthUser;
+export interface CatalogEmployee {
+  id: number;
+  hoten: string;
+  chucvu: string;
+  sdt: string;
+  idbdx: number | null;
+  tenbaido: string | null;
 }
 
 export interface PaginatedResponse<T> {
@@ -167,36 +156,6 @@ export interface Tariff {
   idlkh: number | null;
 }
 
-export interface ShiftRecord {
-  id: number;
-  idnv: number;
-  idbdx: number | null;
-  ten_nhanvien: string;
-  tenbaido: string | null;
-  started_at: string;
-  ended_at: string | null;
-  opening_cash: number;
-  expected_cash: number;
-  actual_cash: number | null;
-  transfer_total: number;
-  note: string | null;
-  status: 'OPEN' | 'CLOSED';
-  live_tx_count?: number;
-  live_cash_total?: number;
-  live_transfer_total?: number;
-  live_refund_total?: number;
-  live_expected_cash?: number;
-}
-
-export interface ShiftCloseResult {
-  shift_id: number;
-  expected_cash: number;
-  actual_cash: number;
-  transfer_total: number;
-  refund_total: number;
-  diff: number;
-}
-
 export interface OperationalAlerts {
   overdue_turns: Array<{
     id: number;
@@ -221,34 +180,6 @@ export interface OperationalAlerts {
     id: number;
     maso: string;
   }>;
-}
-
-export interface AuditLog {
-  id: number;
-  actor_id: number | null;
-  actor_username: string;
-  action: string;
-  entity_type: string;
-  entity_id: string | null;
-  ip_address?: string | null;
-  details_json: string | null;
-  created_at: string;
-}
-
-export interface AccountRecord {
-  id: number;
-  idnv: number;
-  username: string;
-  role: UserRole;
-  is_active: number | boolean;
-  must_change_password?: number | boolean;
-  last_login_at: string | null;
-  created_at: string | null;
-  ten_nhanvien: string;
-  chucvu: string;
-  sdt: string | null;
-  email: string | null;
-  tenbaido: string | null;
 }
 
 export interface EmployeeRecord {
@@ -332,14 +263,7 @@ export interface CatalogsResponse {
   vehicle_types: Array<{ id: number; tenloai: string }>;
   customer_types: Array<{ id: number; tenloai: string }>;
   lots: ParkingLot[];
-  employees: Array<{
-    id: number;
-    hoten: string;
-    chucvu: string;
-    sdt: string;
-    idbdx: number | null;
-    tenbaido: string | null;
-  }>;
+  employees: CatalogEmployee[];
   vietqr: VietQrConfig;
 }
 

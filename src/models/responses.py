@@ -34,30 +34,6 @@ class HealthResponse(DTOBase):
     version: str
 
 
-class AuthUserDTO(DTOBase):
-    account_id: int
-    employee_id: int
-    username: str
-    full_name: str
-    role: str
-    lot_id: Optional[int] = None
-    token_version: int = 1
-    must_change_password: bool = False
-
-
-class TokenResponse(DTOBase):
-    access_token: str
-    refresh_token: Optional[str] = None
-    token_type: str = "bearer"
-    expires_in: int
-    user: AuthUserDTO
-
-
-class WsTicketResponse(DTOBase):
-    ticket: str
-    expires_in: int = 30
-
-
 class OverviewMetricsDTO(DTOBase):
     total_slots: int
     available_slots: int
@@ -88,15 +64,6 @@ class PaginatedResponse(DTOBase, Generic[T]):
     page: int
     page_size: int
     total_pages: int
-
-
-class ShiftCloseResponse(DTOBase):
-    shift_id: int
-    expected_cash: int
-    actual_cash: int
-    transfer_total: int
-    refund_total: int = 0
-    diff: int
 
 
 class PassRenewResponse(DTOBase):

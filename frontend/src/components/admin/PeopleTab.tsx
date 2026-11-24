@@ -5,7 +5,6 @@ import { useToast } from '../../context/ToastContext';
 import { apiRequest, formatDateTime, formatVnd, getErrorMessage } from '../../lib/api';
 import { cn } from '../../lib/cn';
 import type {
-  AuthUser,
   CatalogsResponse,
   CustomerRecord,
   EmployeeRecord,
@@ -30,11 +29,7 @@ type DeleteTarget =
   | { kind: 'customer'; id: number; label: string }
   | { kind: 'vehicle'; id: number; label: string };
 
-interface PeopleTabProps {
-  user: AuthUser;
-}
-
-export function PeopleTab({ user }: PeopleTabProps) {
+export function PeopleTab() {
   const { notify } = useToast();
   const queryClient = useQueryClient();
   const prefix = useId();
@@ -69,10 +64,6 @@ export function PeopleTab({ user }: PeopleTabProps) {
 
   // Confirm delete state
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-
-  const isAdmin = user.role === 'ADMIN';
-  const canEditCustomer = user.role === 'ADMIN' || user.role === 'ACCOUNTANT';
-  const canEditVehicle = user.role === 'ADMIN' || user.role === 'OPERATOR';
 
   const catalogsQuery = useQuery<CatalogsResponse>({
     queryKey: ['catalogs'],
@@ -382,7 +373,7 @@ export function PeopleTab({ user }: PeopleTabProps) {
             onChange={setSearch}
             placeholder="Lọc nhanh danh bạ..."
           />
-          {sub === 'employees' && isAdmin && (
+          {sub === 'employees' && (
             <Button
               size="md"
               icon={<UserPlus className="h-4 w-4" />}
@@ -425,9 +416,7 @@ export function PeopleTab({ user }: PeopleTabProps) {
                       <th className="px-3.5 py-2.5 whitespace-nowrap">Bãi phụ trách</th>
                       <th className="px-3.5 py-2.5 whitespace-nowrap">SĐT / CCCD</th>
                       <th className="px-3.5 py-2.5 whitespace-nowrap">Email / Địa chỉ</th>
-                      {isAdmin && (
-                        <th className="px-3.5 py-2.5 whitespace-nowrap text-right">Thao tác</th>
-                      )}
+                      <th className="px-3.5 py-2.5 whitespace-nowrap text-right">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -451,34 +440,32 @@ export function PeopleTab({ user }: PeopleTabProps) {
                           <div>{e.email || '—'}</div>
                           <div className="text-[11px] text-slate-500">{e.diachi || '—'}</div>
                         </td>
-                        {isAdmin && (
-                          <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
-                            <div className="inline-flex items-center justify-end gap-1.5">
-                              <button
-                                type="button"
-                                aria-label={`Sửa nhân viên ${e.hoten}`}
-                                onClick={() => openEditEmployeeModal(e)}
-                                className="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-brand-600 transition-colors"
-                              >
-                                <Edit3 className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                aria-label={`Xóa nhân viên ${e.hoten}`}
-                                onClick={() =>
-                                  setDeleteTarget({
-                                    kind: 'employee',
-                                    id: e.id,
-                                    label: `nhân viên ${e.hoten}`,
-                                  })
-                                }
-                                className="rounded-lg border border-rose-200 dark:border-rose-900 p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        )}
+                        <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              aria-label={`Sửa nhân viên ${e.hoten}`}
+                              onClick={() => openEditEmployeeModal(e)}
+                              className="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-brand-600 transition-colors"
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`Xóa nhân viên ${e.hoten}`}
+                              onClick={() =>
+                                setDeleteTarget({
+                                  kind: 'employee',
+                                  id: e.id,
+                                  label: `nhân viên ${e.hoten}`,
+                                })
+                              }
+                              className="rounded-lg border border-rose-200 dark:border-rose-900 p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -494,9 +481,7 @@ export function PeopleTab({ user }: PeopleTabProps) {
                       <th className="px-3.5 py-2.5 whitespace-nowrap">SĐT / CCCD</th>
                       <th className="px-3.5 py-2.5 whitespace-nowrap">Biển số đăng ký</th>
                       <th className="px-3.5 py-2.5 whitespace-nowrap text-right">Vé hiệu lực</th>
-                      {(canEditCustomer || isAdmin) && (
-                        <th className="px-3.5 py-2.5 whitespace-nowrap text-right">Thao tác</th>
-                      )}
+                      <th className="px-3.5 py-2.5 whitespace-nowrap text-right">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -522,38 +507,32 @@ export function PeopleTab({ user }: PeopleTabProps) {
                           </span>{' '}
                           / {c.tong_ve_da_dang_ky}
                         </td>
-                        {(canEditCustomer || isAdmin) && (
-                          <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
-                            <div className="inline-flex items-center justify-end gap-1.5">
-                              {canEditCustomer && (
-                                <button
-                                  type="button"
-                                  aria-label={`Sửa khách hàng ${c.hoten}`}
-                                  onClick={() => openEditCustomerModal(c)}
-                                  className="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-brand-600 transition-colors"
-                                >
-                                  <Edit3 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                              {isAdmin && (
-                                <button
-                                  type="button"
-                                  aria-label={`Xóa khách hàng ${c.hoten}`}
-                                  onClick={() =>
-                                    setDeleteTarget({
-                                      kind: 'customer',
-                                      id: c.id,
-                                      label: `khách hàng ${c.hoten}`,
-                                    })
-                                  }
-                                  className="rounded-lg border border-rose-200 dark:border-rose-900 p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        )}
+                        <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              aria-label={`Sửa khách hàng ${c.hoten}`}
+                              onClick={() => openEditCustomerModal(c)}
+                              className="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-brand-600 transition-colors"
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`Xóa khách hàng ${c.hoten}`}
+                              onClick={() =>
+                                setDeleteTarget({
+                                  kind: 'customer',
+                                  id: c.id,
+                                  label: `khách hàng ${c.hoten}`,
+                                })
+                              }
+                              className="rounded-lg border border-rose-200 dark:border-rose-900 p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -616,9 +595,7 @@ export function PeopleTab({ user }: PeopleTabProps) {
                       <th className="px-3.5 py-2.5 whitespace-nowrap">Chủ xe</th>
                       <th className="px-3.5 py-2.5 whitespace-nowrap text-right">Tổng lượt</th>
                       <th className="px-3.5 py-2.5 whitespace-nowrap">Tình trạng</th>
-                      {(canEditVehicle || isAdmin) && (
-                        <th className="px-3.5 py-2.5 whitespace-nowrap text-right">Thao tác</th>
-                      )}
+                      <th className="px-3.5 py-2.5 whitespace-nowrap text-right">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -648,38 +625,32 @@ export function PeopleTab({ user }: PeopleTabProps) {
                             {v.dang_trong_bai ? 'Đang trong bãi' : 'Ngoài bãi'}
                           </StatusBadge>
                         </td>
-                        {(canEditVehicle || isAdmin) && (
-                          <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
-                            <div className="inline-flex items-center justify-end gap-1.5">
-                              {canEditVehicle && (
-                                <button
-                                  type="button"
-                                  aria-label={`Sửa phương tiện ${v.bienso}`}
-                                  onClick={() => openEditVehicleModal(v)}
-                                  className="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-brand-600 transition-colors"
-                                >
-                                  <Edit3 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                              {isAdmin && (
-                                <button
-                                  type="button"
-                                  aria-label={`Xóa phương tiện ${v.bienso}`}
-                                  onClick={() =>
-                                    setDeleteTarget({
-                                      kind: 'vehicle',
-                                      id: v.id,
-                                      label: `phương tiện ${v.bienso}`,
-                                    })
-                                  }
-                                  className="rounded-lg border border-rose-200 dark:border-rose-900 p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        )}
+                        <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              aria-label={`Sửa phương tiện ${v.bienso}`}
+                              onClick={() => openEditVehicleModal(v)}
+                              className="rounded-lg border border-slate-200 dark:border-slate-700 p-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-brand-600 transition-colors"
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`Xóa phương tiện ${v.bienso}`}
+                              onClick={() =>
+                                setDeleteTarget({
+                                  kind: 'vehicle',
+                                  id: v.id,
+                                  label: `phương tiện ${v.bienso}`,
+                                })
+                              }
+                              className="rounded-lg border border-rose-200 dark:border-rose-900 p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

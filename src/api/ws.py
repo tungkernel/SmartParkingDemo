@@ -9,8 +9,6 @@ from fastapi import WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 
 from core.config import get_settings
-from core.exceptions import AuthenticationError
-from services.auth_service import AuthService, AuthUser
 
 logger = logging.getLogger(__name__)
 
@@ -104,33 +102,17 @@ def _is_origin_allowed(origin: Optional[str]) -> bool:
     return origin in allowed
 
 
-async def handle_live_websocket(ws: WebSocket, auth: AuthService) -> None:
-    """Authenticated WebSocket handler supporting single-use ticket or Bearer token + ping/pong."""
+async def handle_live_websocket(ws: WebSocket) -> None:
+    """Direct WebSocket handler with origin check and ping/pong keepalive."""
     origin = ws.headers.get("origin")
     if not _is_origin_allowed(origin):
         await ws.close(code=4403, reason="Origin not allowed")
-        return
-
-    ticket = ws.query_params.get("ticket")
-    auth_header = ws.headers.get("authorization", "")
-    user: Optional[AuthUser] = None
-    try:
-        if ticket:
-            user = auth.ws_tickets.consume(ticket)
-        elif auth_header.lower().startswith("bearer "):
-            user = await asyncio.to_thread(auth.verify_active_token, auth_header[7:].strip())
-        else:
-            await ws.close(code=4401, reason="Authentication required")
-            return
-    except AuthenticationError:
-        await ws.close(code=4401, reason="Invalid or expired credentials")
         return
 
     accepted = await ws_manager.connect(ws)
     if not accepted:
         return
 
-    logger.debug("WebSocket connected for user=%s", user.username)
     try:
         while True:
             try:
@@ -143,6 +125,6 @@ async def handle_live_websocket(ws: WebSocket, auth: AuthService) -> None:
     except WebSocketDisconnect:
         pass
     except Exception:
-        logger.debug("WebSocket closed unexpectedly for user=%s", user.username, exc_info=True)
+        logger.debug("WebSocket closed unexpectedly", exc_info=True)
     finally:
         await ws_manager.disconnect(ws)

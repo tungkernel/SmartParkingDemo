@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import json
 from datetime import timedelta
 from typing import Any, Optional
 
 from services.db_service import DBService
 from services.domain.base import (
     OverviewMetrics,
-    mask_phone,
     utc_now,
     vn_day_utc_bounds,
     vn_today,
@@ -15,7 +13,7 @@ from services.domain.base import (
 
 
 class AnalyticsService:
-    """Domain service for KPIs, sargable revenue analytics, operational alerts, and audit logs."""
+    """Domain service for KPIs, sargable revenue analytics, and operational alerts."""
 
     def __init__(self, db: DBService) -> None:
         self.db = db
@@ -186,7 +184,6 @@ class AnalyticsService:
         overdue_hours: int = 24,
         pass_expiring_days: int = 7,
         lot_id: Optional[int] = None,
-        redact_pii: bool = False,
     ) -> dict[str, Any]:
         """Return active operational alerts using sargable UTC timestamp cutoffs."""
         cutoff_utc = (utc_now() - timedelta(hours=max(1, int(overdue_hours)))).strftime(
@@ -235,9 +232,6 @@ class AnalyticsService:
             """,
             (today_str, today_str, expiring_end_str),
         )
-        if redact_pii:
-            for item in expiring_passes:
-                item["sdt"] = mask_phone(item.get("sdt"))
         lost_cards = self.db.fetch_all(
             "SELECT id, maso FROM thexe WHERE trangthai = 2 ORDER BY id DESC"
         )
@@ -246,85 +240,3 @@ class AnalyticsService:
             "expiring_passes": expiring_passes,
             "lost_cards": lost_cards,
         }
-
-    def record_audit_log(
-        self,
-        actor_id: Optional[int],
-        actor_username: str,
-        action: str,
-        entity_type: str,
-        entity_id: Optional[Any] = None,
-        details: Optional[dict[str, Any]] = None,
-        ip_address: Optional[str] = None,
-    ) -> None:
-        """Persist an immutable audit trail entry."""
-        payload = json.dumps(details or {}, ensure_ascii=False, default=str)
-        self.db.execute_non_query(
-            """
-            INSERT INTO audit_logs (actor_id, actor_username, action, entity_type, entity_id, ip_address, details_json)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                actor_id,
-                (actor_username or "system")[:50],
-                action[:60],
-                entity_type[:40],
-                str(entity_id)[:64] if entity_id is not None else None,
-                ip_address[:64] if ip_address else None,
-                payload,
-            ),
-        )
-
-    def get_audit_logs(
-        self,
-        limit: int = 100,
-        offset: int = 0,
-        action: Optional[str] = None,
-        entity_type: Optional[str] = None,
-        actor_username: Optional[str] = None,
-    ) -> list[dict[str, Any]]:
-        conditions: list[str] = []
-        params: list[Any] = []
-        if action and action.strip():
-            conditions.append("action = %s")
-            params.append(action.strip().upper())
-        if entity_type and entity_type.strip():
-            conditions.append("entity_type = %s")
-            params.append(entity_type.strip())
-        if actor_username and actor_username.strip():
-            conditions.append("LOWER(actor_username) LIKE LOWER(%s)")
-            params.append(f"%{actor_username.strip()}%")
-        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        params.extend([int(limit), max(0, int(offset))])
-
-        return self.db.fetch_all(
-            f"""
-            SELECT id, actor_id, actor_username, action, entity_type, entity_id, ip_address, details_json, created_at
-            FROM audit_logs
-            {where_clause}
-            ORDER BY id DESC
-            LIMIT %s OFFSET %s
-            """,
-            params,
-        )
-
-    def count_audit_logs(
-        self,
-        action: Optional[str] = None,
-        entity_type: Optional[str] = None,
-        actor_username: Optional[str] = None,
-    ) -> int:
-        conditions: list[str] = []
-        params: list[Any] = []
-        if action and action.strip():
-            conditions.append("action = %s")
-            params.append(action.strip().upper())
-        if entity_type and entity_type.strip():
-            conditions.append("entity_type = %s")
-            params.append(entity_type.strip())
-        if actor_username and actor_username.strip():
-            conditions.append("LOWER(actor_username) LIKE LOWER(%s)")
-            params.append(f"%{actor_username.strip()}%")
-        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        row = self.db.fetch_one(f"SELECT COUNT(*) AS cnt FROM audit_logs {where_clause}", params or None)
-        return int((row or {}).get("cnt") or 0)

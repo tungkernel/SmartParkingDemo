@@ -5,41 +5,9 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-RoleLiteral = Literal["ADMIN", "ACCOUNTANT", "OPERATOR"]
 PaymentMethodLiteral = Literal["Tiền mặt", "Chuyển khoản"]
 PaymentStatusLiteral = Literal["Thành công", "Hoàn tiền", "Thất bại"]
 TicketTypeLiteral = Literal["ngày", "tháng"]
-
-
-class LoginRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=50)
-    password: str = Field(min_length=1, max_length=128)
-
-
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str = Field(min_length=16, max_length=256)
-
-
-class LogoutRequest(BaseModel):
-    refresh_token: Optional[str] = Field(default=None, max_length=256)
-
-
-class ChangePasswordRequest(BaseModel):
-    old_password: str = Field(min_length=1, max_length=128)
-    new_password: str = Field(min_length=8, max_length=128)
-
-
-class AccountCreateRequest(BaseModel):
-    employee_id: int = Field(gt=0)
-    username: str = Field(min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_.]+$")
-    password: str = Field(min_length=8, max_length=128)
-    role: RoleLiteral = "OPERATOR"
-
-
-class AccountUpdateRequest(BaseModel):
-    role: Optional[RoleLiteral] = None
-    is_active: Optional[bool] = None
-    new_password: Optional[str] = Field(default=None, min_length=8, max_length=128)
 
 
 class CheckInRequest(BaseModel):
@@ -106,11 +74,13 @@ class PassRegisterRequest(BaseModel):
     card_id: int = Field(gt=0)
     months: int = Field(default=1, ge=1, le=12)
     payment_method: PaymentMethodLiteral = "Tiền mặt"
+    employee_id: Optional[int] = Field(default=None, gt=0)
 
 
 class PassRenewRequest(BaseModel):
     months: int = Field(default=1, ge=1, le=24)
     payment_method: PaymentMethodLiteral = "Tiền mặt"
+    employee_id: Optional[int] = Field(default=None, gt=0)
 
 
 class PassAssetsUpdateRequest(BaseModel):
@@ -149,14 +119,3 @@ class CardStatusRequest(BaseModel):
 class VehicleUpdateRequest(BaseModel):
     plate: str = Field(min_length=1, max_length=15)
     vehicle_type_id: int = Field(gt=0)
-
-
-class ShiftOpenRequest(BaseModel):
-    lot_id: Optional[int] = Field(default=None, gt=0)
-    opening_cash: int = Field(default=0, ge=0, le=500_000_000)
-    note: str = Field(default="", max_length=255)
-
-
-class ShiftCloseRequest(BaseModel):
-    actual_cash: int = Field(ge=0, le=500_000_000)
-    note: str = Field(default="", max_length=255)

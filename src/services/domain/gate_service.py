@@ -6,14 +6,12 @@ from typing import Any, Optional
 from core.exceptions import ConflictError, NotFoundError, ValidationError
 from services.db_service import DBService
 from services.domain.base import (
-    AuditActor,
     FeeQuote,
     normalize_payment_method,
     normalize_plate,
     utc_now,
     utc_now_str,
     vn_today,
-    write_audit_in_tx,
 )
 
 
@@ -133,8 +131,6 @@ class GateService:
         slot_id: int,
         card_id: int,
         employee_id: int,
-        operator_lot_id: Optional[int] = None,
-        actor: Optional[AuditActor] = None,
     ) -> int:
         """Register a vehicle entering a parking slot atomically with consistent lock ordering."""
         plate = normalize_plate(license_plate)
@@ -156,14 +152,6 @@ class GateService:
             slot = cursor.fetchone()
             if slot is None or int(slot["trangthai"] or 0) != 1:
                 raise ConflictError("Vị trí đỗ đã có xe, đang bảo trì hoặc không tồn tại.")
-            if operator_lot_id is not None:
-                cursor.execute(
-                    "SELECT idbdx FROM khuvucdo WHERE id = %s",
-                    (slot["idkvd"],),
-                )
-                zone_row = cursor.fetchone()
-                if zone_row is None or int(zone_row["idbdx"]) != int(operator_lot_id):
-                    raise ValidationError("Nhân viên chỉ được phép ghi nhận xe vào bãi đỗ được phân công.")
 
             cursor.execute(
                 "SELECT id, trangthai FROM thexe WHERE id = %s FOR UPDATE",
@@ -262,16 +250,7 @@ class GateService:
                 """,
                 (slot_id, now_str, now_str, employee_id, vehicle_id, card_id, tariff_id),
             )
-            turn_id = int(cursor.lastrowid)
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "CHECK_IN",
-                "luotdo",
-                turn_id,
-                {"plate": plate, "slot_id": slot_id, "card_id": card_id, "employee_id": employee_id},
-            )
-            return turn_id
+            return int(cursor.lastrowid)
 
     @staticmethod
     def _compute_quote_from_row(
@@ -322,11 +301,7 @@ class GateService:
             monthly_pass_id=int(monthly_pass["id"]) if monthly_pass else None,
         )
 
-    def get_fee_quote(
-        self,
-        turn_id: int,
-        operator_lot_id: Optional[int] = None,
-    ) -> FeeQuote:
+    def get_fee_quote(self, turn_id: int) -> FeeQuote:
         """Calculate checkout fee preview for an active parking turn."""
         row = self.db.fetch_one(
             """
@@ -353,8 +328,6 @@ class GateService:
         )
         if row is None:
             raise NotFoundError("Không tìm thấy lượt đỗ đang hoạt động.")
-        if operator_lot_id is not None and int(row["idbdx"]) != int(operator_lot_id):
-            raise ValidationError("Nhân viên chỉ được xem báo giá lượt đỗ thuộc bãi được phân công.")
 
         today_str = vn_today().strftime("%Y-%m-%d")
         monthly_pass = self.db.fetch_one(
@@ -392,8 +365,6 @@ class GateService:
         lost_card_fee: int = 0,
         payment_method: str = "Tiền mặt",
         replacement_card_id: Optional[int] = None,
-        operator_lot_id: Optional[int] = None,
-        actor: Optional[AuditActor] = None,
     ) -> FeeQuote:
         """Complete parking turn, record payment method, and free/replace slot & card atomically."""
         if lost_card and lost_card_fee < 0:
@@ -441,8 +412,6 @@ class GateService:
             if meta is None:
                 raise NotFoundError("Không tìm thấy dữ liệu vị trí hoặc phương tiện của lượt đỗ.")
             turn = {**turn_core, **meta}
-            if operator_lot_id is not None and int(turn["idbdx"]) != int(operator_lot_id):
-                raise ValidationError("Nhân viên chỉ được check-out lượt đỗ thuộc bãi được phân công.")
 
             cursor.execute(
                 "SELECT id FROM thanhtoan WHERE idld = %s LIMIT 1",
@@ -551,31 +520,10 @@ class GateService:
                 "UPDATE thexe SET trangthai = %s WHERE id = %s",
                 (next_card_status, turn["idtx"]),
             )
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "CHECKOUT_LOST_CARD" if lost_card else "CHECK_OUT",
-                "luotdo",
-                turn_id,
-                {
-                    "plate": final_quote.license_plate,
-                    "amount": final_quote.amount,
-                    "payment_method": clean_method,
-                    "lost_card": lost_card,
-                    "lost_card_fee": lost_card_fee if lost_card else 0,
-                    "replacement_card_id": replacement_card_id,
-                },
-            )
 
         return final_quote
 
-    def move_active_turn_slot(
-        self,
-        turn_id: int,
-        new_slot_id: int,
-        operator_lot_id: Optional[int] = None,
-        actor: Optional[AuditActor] = None,
-    ) -> None:
+    def move_active_turn_slot(self, turn_id: int, new_slot_id: int) -> None:
         """Move an active parked vehicle to another free slot using deterministic lock ordering."""
         with self.db.transaction() as cursor:
             # Lock ONLY luotdo first so old_slot_id is NOT locked before ascending-ID slot locking
@@ -608,44 +556,15 @@ class GateService:
                 (low_id, high_id),
             )
             locked_rows = {int(r["id"]): r for r in (cursor.fetchall() or [])}
-            old_slot = locked_rows.get(old_slot_id)
             new_slot = locked_rows.get(int(new_slot_id))
             if new_slot is None or int(new_slot["trangthai"]) != 1:
                 raise ConflictError("Vị trí đích không trống hoặc đang bảo trì.")
 
-            if operator_lot_id is not None:
-                zone_ids = {int(new_slot["idkvd"])}
-                if old_slot is not None:
-                    zone_ids.add(int(old_slot["idkvd"]))
-                placeholders = ", ".join(["%s"] * len(zone_ids))
-                cursor.execute(
-                    f"SELECT id, idbdx FROM khuvucdo WHERE id IN ({placeholders})",
-                    tuple(zone_ids),
-                )
-                zone_lots = {int(z["id"]): int(z["idbdx"]) for z in (cursor.fetchall() or [])}
-                if old_slot is None or zone_lots.get(int(old_slot["idkvd"])) != int(operator_lot_id):
-                    raise ValidationError("Nhân viên chỉ được chuyển ô đỗ thuộc bãi được phân công.")
-                if zone_lots.get(int(new_slot["idkvd"])) != int(operator_lot_id):
-                    raise ValidationError("Vị trí đích không thuộc bãi đỗ được phân công.")
-
             cursor.execute("UPDATE vitrido SET trangthai = 1 WHERE id = %s", (old_slot_id,))
             cursor.execute("UPDATE vitrido SET trangthai = 0 WHERE id = %s", (new_slot_id,))
             cursor.execute("UPDATE luotdo SET idvtd = %s WHERE id = %s", (new_slot_id, turn_id))
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "MOVE_TURN_SLOT",
-                "luotdo",
-                turn_id,
-                {"old_slot_id": old_slot_id, "new_slot_id": new_slot_id},
-            )
 
-    def cancel_active_turn(
-        self,
-        turn_id: int,
-        operator_lot_id: Optional[int] = None,
-        actor: Optional[AuditActor] = None,
-    ) -> None:
+    def cancel_active_turn(self, turn_id: int) -> None:
         """Cancel an unpaid active turn created by mistake and release slot & card atomically."""
         with self.db.transaction() as cursor:
             cursor.execute(
@@ -655,19 +574,6 @@ class GateService:
             turn = cursor.fetchone()
             if turn is None:
                 raise NotFoundError("Lượt đỗ không tồn tại.")
-            if operator_lot_id is not None:
-                cursor.execute(
-                    """
-                    SELECT k.idbdx
-                    FROM vitrido v
-                    JOIN khuvucdo k ON k.id = v.idkvd
-                    WHERE v.id = %s
-                    """,
-                    (turn["idvtd"],),
-                )
-                lot_row = cursor.fetchone()
-                if lot_row is None or int(lot_row["idbdx"]) != int(operator_lot_id):
-                    raise ValidationError("Nhân viên chỉ được hủy lượt đỗ thuộc bãi được phân công.")
 
             cursor.execute("SELECT id FROM thanhtoan WHERE idld = %s LIMIT 1", (turn_id,))
             if cursor.fetchone() is not None:
@@ -678,11 +584,3 @@ class GateService:
             cursor.execute("UPDATE vitrido SET trangthai = 1 WHERE id = %s AND trangthai = 0", (turn["idvtd"],))
             cursor.execute("UPDATE thexe SET trangthai = 1 WHERE id = %s AND trangthai = 0", (turn["idtx"],))
             cursor.execute("DELETE FROM luotdo WHERE id = %s", (turn_id,))
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "CANCEL_TURN",
-                "luotdo",
-                turn_id,
-                {"slot_id": turn["idvtd"], "card_id": turn["idtx"]},
-            )

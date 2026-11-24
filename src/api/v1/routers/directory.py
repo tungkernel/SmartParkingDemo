@@ -2,16 +2,10 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Path, Query, Request, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from fastapi.encoders import jsonable_encoder
 
-from api.deps import (
-    build_audit_actor,
-    get_current_user,
-    get_parking_service,
-    operator_lot_scope,
-    require_roles,
-)
+from api.deps import get_parking_service
 from api.schemas import (
     CardCreateRequest,
     CardStatusRequest,
@@ -21,7 +15,6 @@ from api.schemas import (
 )
 from core.config import get_settings
 from models.responses import CatalogsResponse, IdResponse, MessageResponse
-from services.auth_service import AuthUser
 from services.parking_service import ParkingService
 
 router = APIRouter(tags=["Directory & Catalogs"])
@@ -29,16 +22,14 @@ router = APIRouter(tags=["Directory & Catalogs"])
 
 @router.get("/catalogs", response_model=CatalogsResponse, summary="Danh mục nền hệ thống & cấu hình VietQR")
 def get_catalogs(
-    user: AuthUser = Depends(get_current_user),
     service: ParkingService = Depends(get_parking_service),
 ) -> CatalogsResponse:
     settings = get_settings()
-    redact = user.role.upper() == "OPERATOR"
     return CatalogsResponse(
         vehicle_types=jsonable_encoder(service.get_vehicle_types()),
         customer_types=jsonable_encoder(service.get_customer_types()),
-        lots=jsonable_encoder(service.get_parking_lots(lot_id=operator_lot_scope(user))),
-        employees=jsonable_encoder(service.get_employees(redact_pii=redact)),
+        lots=jsonable_encoder(service.get_parking_lots()),
+        employees=jsonable_encoder(service.get_employees()),
         vietqr={
             "bank_bin": settings.vietqr_bank_bin,
             "account_no": settings.vietqr_account_no,
@@ -52,12 +43,10 @@ def list_employees(
     keyword: Optional[str] = Query(default=None, max_length=60),
     limit: Optional[int] = Query(default=None, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-    user: AuthUser = Depends(get_current_user),
     service: ParkingService = Depends(get_parking_service),
 ) -> list[dict[str, Any]]:
-    redact = user.role.upper() == "OPERATOR"
     return jsonable_encoder(
-        service.get_employees_detail(keyword=keyword, limit=limit, offset=offset, redact_pii=redact)
+        service.get_employees_detail(keyword=keyword, limit=limit, offset=offset)
     )
 
 
@@ -68,12 +57,9 @@ def list_employees(
     summary="Thêm nhân viên mới",
 )
 def create_employee(
-    request: Request,
     body: EmployeeRequest,
-    user: AuthUser = Depends(require_roles("ADMIN")),
     service: ParkingService = Depends(get_parking_service),
 ) -> IdResponse:
-    actor = build_audit_actor(request, user)
     eid = service.create_employee(
         lot_id=body.lot_id,
         full_name=body.hoten,
@@ -84,7 +70,6 @@ def create_employee(
         start_date=body.start_date,
         email=body.email,
         cccd=body.cccd,
-        actor=actor,
     )
     return IdResponse(id=eid)
 
@@ -95,13 +80,10 @@ def create_employee(
     summary="Cập nhật hồ sơ nhân viên",
 )
 def update_employee(
-    request: Request,
     body: EmployeeRequest,
     emp_id: int = Path(..., gt=0),
-    user: AuthUser = Depends(require_roles("ADMIN")),
     service: ParkingService = Depends(get_parking_service),
 ) -> MessageResponse:
-    actor = build_audit_actor(request, user)
     service.update_employee(
         emp_id=emp_id,
         lot_id=body.lot_id,
@@ -111,7 +93,6 @@ def update_employee(
         phone=body.sdt,
         email=body.email,
         cccd=body.cccd,
-        actor=actor,
     )
     return MessageResponse(message="Đã cập nhật nhân viên.")
 
@@ -122,13 +103,10 @@ def update_employee(
     summary="Xóa nhân viên chưa phát sinh dữ liệu",
 )
 def delete_employee(
-    request: Request,
     emp_id: int = Path(..., gt=0),
-    user: AuthUser = Depends(require_roles("ADMIN")),
     service: ParkingService = Depends(get_parking_service),
 ) -> MessageResponse:
-    actor = build_audit_actor(request, user)
-    service.delete_employee(emp_id, actor=actor)
+    service.delete_employee(emp_id)
     return MessageResponse(message="Đã xóa nhân viên.")
 
 
@@ -137,12 +115,10 @@ def list_customers(
     keyword: Optional[str] = Query(default=None, max_length=60),
     limit: Optional[int] = Query(default=None, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-    user: AuthUser = Depends(get_current_user),
     service: ParkingService = Depends(get_parking_service),
 ) -> list[dict[str, Any]]:
-    redact = user.role.upper() == "OPERATOR"
     return jsonable_encoder(
-        service.get_customers_detail(keyword=keyword, limit=limit, offset=offset, redact_pii=redact)
+        service.get_customers_detail(keyword=keyword, limit=limit, offset=offset)
     )
 
 
@@ -152,15 +128,12 @@ def list_customers(
     summary="Cập nhật thông tin khách hàng",
 )
 def update_customer(
-    request: Request,
     body: CustomerUpdateRequest,
     customer_id: int = Path(..., gt=0),
-    user: AuthUser = Depends(require_roles("ADMIN", "ACCOUNTANT")),
     service: ParkingService = Depends(get_parking_service),
 ) -> MessageResponse:
-    actor = build_audit_actor(request, user)
     service.update_customer(
-        customer_id, body.hoten, body.sdt, body.cccd, body.customer_type_id, actor=actor
+        customer_id, body.hoten, body.sdt, body.cccd, body.customer_type_id
     )
     return MessageResponse(message="Đã cập nhật khách hàng.")
 
@@ -171,13 +144,10 @@ def update_customer(
     summary="Xóa khách hàng chưa đăng ký vé tháng",
 )
 def delete_customer(
-    request: Request,
     customer_id: int = Path(..., gt=0),
-    user: AuthUser = Depends(require_roles("ADMIN")),
     service: ParkingService = Depends(get_parking_service),
 ) -> MessageResponse:
-    actor = build_audit_actor(request, user)
-    service.delete_customer(customer_id, actor=actor)
+    service.delete_customer(customer_id)
     return MessageResponse(message="Đã xóa khách hàng.")
 
 
@@ -186,7 +156,6 @@ def list_walkins(
     keyword: Optional[str] = Query(default=None, max_length=60),
     limit: int = Query(default=200, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
-    _user: AuthUser = Depends(require_roles("ADMIN", "ACCOUNTANT")),
     service: ParkingService = Depends(get_parking_service),
 ) -> list[dict[str, Any]]:
     return jsonable_encoder(
@@ -203,7 +172,6 @@ def list_cards(
     keyword: Optional[str] = Query(default=None, max_length=30),
     limit: Optional[int] = Query(default=None, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
-    _user: AuthUser = Depends(get_current_user),
     service: ParkingService = Depends(get_parking_service),
 ) -> list[dict[str, Any]]:
     if detail:
@@ -224,13 +192,10 @@ def list_cards(
     summary="Phát hành thẻ RFID mới",
 )
 def create_card(
-    request: Request,
     body: CardCreateRequest,
-    user: AuthUser = Depends(require_roles("ADMIN", "OPERATOR")),
     service: ParkingService = Depends(get_parking_service),
 ) -> IdResponse:
-    actor = build_audit_actor(request, user)
-    cid = service.create_card(body.code, actor=actor)
+    cid = service.create_card(body.code)
     return IdResponse(id=cid)
 
 
@@ -240,14 +205,11 @@ def create_card(
     summary="Cập nhật trạng thái thẻ RFID (1=Sẵn sàng, 2=Mất/Hỏng)",
 )
 def set_card_status(
-    request: Request,
     body: CardStatusRequest,
     card_id: int = Path(..., gt=0),
-    user: AuthUser = Depends(require_roles("ADMIN", "OPERATOR")),
     service: ParkingService = Depends(get_parking_service),
 ) -> MessageResponse:
-    actor = build_audit_actor(request, user)
-    service.set_card_status(card_id, body.status, actor=actor)
+    service.set_card_status(card_id, body.status)
     return MessageResponse(message="Đã cập nhật trạng thái thẻ.")
 
 
@@ -257,13 +219,10 @@ def set_card_status(
     summary="Xóa thẻ RFID chưa có lịch sử",
 )
 def delete_card(
-    request: Request,
     card_id: int = Path(..., gt=0),
-    user: AuthUser = Depends(require_roles("ADMIN")),
     service: ParkingService = Depends(get_parking_service),
 ) -> MessageResponse:
-    actor = build_audit_actor(request, user)
-    service.delete_card(card_id, actor=actor)
+    service.delete_card(card_id)
     return MessageResponse(message="Đã xóa thẻ xe.")
 
 
@@ -272,7 +231,6 @@ def list_vehicles(
     keyword: Optional[str] = Query(default=None, max_length=30),
     limit: Optional[int] = Query(default=None, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
-    _user: AuthUser = Depends(get_current_user),
     service: ParkingService = Depends(get_parking_service),
 ) -> list[dict[str, Any]]:
     return jsonable_encoder(
@@ -286,14 +244,11 @@ def list_vehicles(
     summary="Cập nhật biển số hoặc loại phương tiện",
 )
 def update_vehicle(
-    request: Request,
     body: VehicleUpdateRequest,
     vehicle_id: int = Path(..., gt=0),
-    user: AuthUser = Depends(require_roles("ADMIN", "OPERATOR")),
     service: ParkingService = Depends(get_parking_service),
 ) -> MessageResponse:
-    actor = build_audit_actor(request, user)
-    service.update_vehicle(vehicle_id, body.plate, body.vehicle_type_id, actor=actor)
+    service.update_vehicle(vehicle_id, body.plate, body.vehicle_type_id)
     return MessageResponse(message="Đã cập nhật phương tiện.")
 
 
@@ -303,11 +258,8 @@ def update_vehicle(
     summary="Xóa phương tiện chưa có lịch sử",
 )
 def delete_vehicle(
-    request: Request,
     vehicle_id: int = Path(..., gt=0),
-    user: AuthUser = Depends(require_roles("ADMIN")),
     service: ParkingService = Depends(get_parking_service),
 ) -> MessageResponse:
-    actor = build_audit_actor(request, user)
-    service.delete_vehicle(vehicle_id, actor=actor)
+    service.delete_vehicle(vehicle_id)
     return MessageResponse(message="Đã xóa phương tiện.")

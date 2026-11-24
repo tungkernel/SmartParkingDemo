@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 from core.exceptions import ConflictError, NotFoundError, ValidationError
 from services.db_service import DBService
-from services.domain.base import AuditActor, require_text, write_audit_in_tx
+from services.domain.base import require_text
 
 
 class InfrastructureService:
@@ -37,12 +37,7 @@ class InfrastructureService:
             params,
         )
 
-    def create_parking_lot(
-        self,
-        name: str,
-        location: str,
-        actor: Optional[AuditActor] = None,
-    ) -> int:
+    def create_parking_lot(self, name: str, location: str) -> int:
         lot_name = require_text(name, "Tên bãi đỗ", 100)
         lot_loc = require_text(location, "Địa điểm", 255)
         with self.db.transaction() as cursor:
@@ -50,19 +45,9 @@ class InfrastructureService:
                 "INSERT INTO baidoxe (tenbaido, diadiem) VALUES (%s, %s)",
                 (lot_name, lot_loc),
             )
-            lot_id = int(cursor.lastrowid)
-            write_audit_in_tx(
-                cursor, actor, "CREATE_LOT", "baidoxe", lot_id, {"name": lot_name, "location": lot_loc}
-            )
-            return lot_id
+            return int(cursor.lastrowid)
 
-    def update_parking_lot(
-        self,
-        lot_id: int,
-        name: str,
-        location: str,
-        actor: Optional[AuditActor] = None,
-    ) -> None:
+    def update_parking_lot(self, lot_id: int, name: str, location: str) -> None:
         lot_name = require_text(name, "Tên bãi đỗ", 100)
         lot_loc = require_text(location, "Địa điểm", 255)
         with self.db.transaction() as cursor:
@@ -73,11 +58,8 @@ class InfrastructureService:
                 "UPDATE baidoxe SET tenbaido = %s, diadiem = %s WHERE id = %s",
                 (lot_name, lot_loc, lot_id),
             )
-            write_audit_in_tx(
-                cursor, actor, "UPDATE_LOT", "baidoxe", lot_id, {"name": lot_name, "location": lot_loc}
-            )
 
-    def delete_parking_lot(self, lot_id: int, actor: Optional[AuditActor] = None) -> None:
+    def delete_parking_lot(self, lot_id: int) -> None:
         with self.db.transaction() as cursor:
             cursor.execute("SELECT id FROM baidoxe WHERE id = %s FOR UPDATE", (lot_id,))
             if cursor.fetchone() is None:
@@ -88,11 +70,7 @@ class InfrastructureService:
             cursor.execute("SELECT id FROM nhanvien WHERE idbdx = %s LIMIT 1", (lot_id,))
             if cursor.fetchone() is not None:
                 raise ConflictError("Không thể xóa bãi đỗ đang có nhân viên phụ trách.")
-            cursor.execute("SELECT id FROM ca_lam_viec WHERE idbdx = %s LIMIT 1", (lot_id,))
-            if cursor.fetchone() is not None:
-                raise ConflictError("Không thể xóa bãi đỗ đã phát sinh lịch sử ca làm việc.")
             cursor.execute("DELETE FROM baidoxe WHERE id = %s", (lot_id,))
-            write_audit_in_tx(cursor, actor, "DELETE_LOT", "baidoxe", lot_id)
 
     def get_zones(self, lot_id: Optional[int] = None) -> list[dict[str, Any]]:
         if lot_id is not None:
@@ -140,12 +118,7 @@ class InfrastructureService:
             params,
         )
 
-    def create_zone(
-        self,
-        lot_id: int,
-        name: str,
-        actor: Optional[AuditActor] = None,
-    ) -> int:
+    def create_zone(self, lot_id: int, name: str) -> int:
         zone_name = require_text(name, "Tên khu vực", 20)
         with self.db.transaction() as cursor:
             cursor.execute("SELECT id FROM baidoxe WHERE id = %s FOR UPDATE", (lot_id,))
@@ -161,19 +134,9 @@ class InfrastructureService:
                 "INSERT INTO khuvucdo (idbdx, ten) VALUES (%s, %s)",
                 (lot_id, zone_name),
             )
-            zone_id = int(cursor.lastrowid)
-            write_audit_in_tx(
-                cursor, actor, "CREATE_ZONE", "khuvucdo", zone_id, {"lot_id": lot_id, "name": zone_name}
-            )
-            return zone_id
+            return int(cursor.lastrowid)
 
-    def update_zone(
-        self,
-        zone_id: int,
-        lot_id: int,
-        name: str,
-        actor: Optional[AuditActor] = None,
-    ) -> None:
+    def update_zone(self, zone_id: int, lot_id: int, name: str) -> None:
         zone_name = require_text(name, "Tên khu vực", 20)
         with self.db.transaction() as cursor:
             cursor.execute("SELECT id FROM khuvucdo WHERE id = %s FOR UPDATE", (zone_id,))
@@ -189,11 +152,8 @@ class InfrastructureService:
                 "UPDATE khuvucdo SET idbdx = %s, ten = %s WHERE id = %s",
                 (lot_id, zone_name, zone_id),
             )
-            write_audit_in_tx(
-                cursor, actor, "UPDATE_ZONE", "khuvucdo", zone_id, {"lot_id": lot_id, "name": zone_name}
-            )
 
-    def delete_zone(self, zone_id: int, actor: Optional[AuditActor] = None) -> None:
+    def delete_zone(self, zone_id: int) -> None:
         with self.db.transaction() as cursor:
             cursor.execute("SELECT id FROM khuvucdo WHERE id = %s FOR UPDATE", (zone_id,))
             if cursor.fetchone() is None:
@@ -202,7 +162,6 @@ class InfrastructureService:
             if cursor.fetchone() is not None:
                 raise ConflictError("Không thể xóa khu vực đang có vị trí đỗ.")
             cursor.execute("DELETE FROM khuvucdo WHERE id = %s", (zone_id,))
-            write_audit_in_tx(cursor, actor, "DELETE_ZONE", "khuvucdo", zone_id)
 
     def get_slots(
         self,
@@ -277,12 +236,7 @@ class InfrastructureService:
             params if params else None,
         )
 
-    def add_slots_to_zone(
-        self,
-        zone_id: int,
-        count: int,
-        actor: Optional[AuditActor] = None,
-    ) -> int:
+    def add_slots_to_zone(self, zone_id: int, count: int) -> int:
         """Create sequential parking slots inside a locked transaction using bulk executemany."""
         if count <= 0 or count > 50:
             raise ValidationError("Số lượng ô đỗ thêm mới phải từ 1 đến 50.")
@@ -302,36 +256,17 @@ class InfrastructureService:
                 "INSERT INTO vitrido (idkvd, sothutu, trangthai) VALUES (%s, %s, 1)",
                 batch,
             )
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "ADD_SLOTS",
-                "vitrido",
-                zone_id,
-                {"zone_id": zone_id, "count": count, "start_stt": start_stt},
-            )
             return count
 
-    def set_slot_maintenance(
-        self,
-        slot_id: int,
-        maintenance: bool,
-        operator_lot_id: Optional[int] = None,
-        actor: Optional[AuditActor] = None,
-    ) -> None:
+    def set_slot_maintenance(self, slot_id: int, maintenance: bool) -> None:
         with self.db.transaction() as cursor:
             cursor.execute(
-                "SELECT id, idkvd, trangthai FROM vitrido WHERE id = %s FOR UPDATE",
+                "SELECT id, trangthai FROM vitrido WHERE id = %s FOR UPDATE",
                 (slot_id,),
             )
             slot = cursor.fetchone()
             if slot is None:
                 raise NotFoundError("Vị trí đỗ không tồn tại.")
-            if operator_lot_id is not None:
-                cursor.execute("SELECT idbdx FROM khuvucdo WHERE id = %s", (slot["idkvd"],))
-                zone_row = cursor.fetchone()
-                if zone_row is None or int(zone_row["idbdx"]) != int(operator_lot_id):
-                    raise ValidationError("Nhân viên chỉ được thao tác bảo trì ô đỗ thuộc bãi được phân công.")
 
             status = int(slot["trangthai"])
             if maintenance:
@@ -344,16 +279,8 @@ class InfrastructureService:
                 if status != 2:
                     raise ConflictError("Vị trí không ở trạng thái bảo trì.")
                 cursor.execute("UPDATE vitrido SET trangthai = 1 WHERE id = %s", (slot_id,))
-            write_audit_in_tx(
-                cursor,
-                actor,
-                "SET_SLOT_MAINTENANCE",
-                "vitrido",
-                slot_id,
-                {"maintenance": maintenance},
-            )
 
-    def delete_slot(self, slot_id: int, actor: Optional[AuditActor] = None) -> None:
+    def delete_slot(self, slot_id: int) -> None:
         with self.db.transaction() as cursor:
             cursor.execute("SELECT id, trangthai FROM vitrido WHERE id = %s FOR UPDATE", (slot_id,))
             slot = cursor.fetchone()
@@ -365,9 +292,8 @@ class InfrastructureService:
             if cursor.fetchone() is not None:
                 raise ConflictError("Vị trí đã có lịch sử lượt đỗ, chỉ có thể khóa bảo trì.")
             cursor.execute("DELETE FROM vitrido WHERE id = %s", (slot_id,))
-            write_audit_in_tx(cursor, actor, "DELETE_SLOT", "vitrido", slot_id)
 
-    def reconcile_slot_states(self, actor: Optional[AuditActor] = None) -> dict[str, int]:
+    def reconcile_slot_states(self) -> dict[str, int]:
         """Reset orphaned occupied slots AND orphaned in-use cards to available atomically."""
         with self.db.transaction() as cursor:
             cursor.execute(
@@ -402,9 +328,7 @@ class InfrastructureService:
                 """
             )
             cards_reconciled = int(cursor.rowcount or 0)
-            result = {
+            return {
                 "slots_reconciled": slots_reconciled,
                 "cards_reconciled": cards_reconciled,
             }
-            write_audit_in_tx(cursor, actor, "RECONCILE_SLOTS", "vitrido", None, result)
-            return result

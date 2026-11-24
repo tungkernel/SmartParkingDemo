@@ -7,7 +7,6 @@ import {
   Shield,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { UserRole } from '../../types';
 
 export type NavGroupKey = 'ops' | 'finance' | 'system';
 
@@ -19,13 +18,12 @@ export interface NavItem {
   subtitle: string;
   icon: LucideIcon;
   group: NavGroupKey;
-  roles: UserRole[];
 }
 
 export const NAV_GROUP_LABELS: Record<NavGroupKey, string> = {
   ops: 'Vận hành bãi xe',
   finance: 'Dịch vụ & Tài chính',
-  system: 'Quản trị hệ thống',
+  system: 'Quản trị danh mục',
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -37,7 +35,6 @@ export const NAV_ITEMS: NavItem[] = [
     subtitle: 'Check-in nhanh, tính phí tự động, VietQR & in nhiệt 80mm',
     icon: CarFront,
     group: 'ops',
-    roles: ['ADMIN', 'ACCOUNTANT', 'OPERATOR'],
   },
   {
     to: '/overview',
@@ -47,7 +44,6 @@ export const NAV_ITEMS: NavItem[] = [
     subtitle: 'Giám sát công suất theo bãi, sơ đồ khu vực thời gian thực',
     icon: LayoutDashboard,
     group: 'ops',
-    roles: ['ADMIN', 'ACCOUNTANT', 'OPERATOR'],
   },
   {
     to: '/passes',
@@ -57,17 +53,15 @@ export const NAV_ITEMS: NavItem[] = [
     subtitle: 'Đăng ký mới, gia hạn định kỳ và ma trận giá dịch vụ',
     icon: CreditCard,
     group: 'finance',
-    roles: ['ADMIN', 'ACCOUNTANT', 'OPERATOR'],
   },
   {
     to: '/transactions',
-    label: 'Giao dịch & Ca trực',
+    label: 'Lịch sử Giao dịch',
     shortLabel: 'Giao dịch',
-    title: 'Lịch sử Giao dịch & Ca trực',
-    subtitle: 'Tra cứu thanh toán, xuất CSV và đối soát quỹ tiền mặt',
+    title: 'Lịch sử Hóa đơn & Giao dịch',
+    subtitle: 'Tra cứu hóa đơn thanh toán, lọc theo ngày/thu ngân và xuất CSV',
     icon: ReceiptText,
     group: 'finance',
-    roles: ['ADMIN', 'ACCOUNTANT', 'OPERATOR'],
   },
   {
     to: '/analytics',
@@ -77,22 +71,14 @@ export const NAV_ITEMS: NavItem[] = [
     subtitle: 'Xu hướng doanh thu, lưu lượng ngày và cơ cấu theo bãi đỗ',
     icon: BarChart3,
     group: 'finance',
-    roles: ['ADMIN', 'ACCOUNTANT'],
   },
   {
     to: '/admin',
-    label: 'Quản trị & Kiểm toán',
+    label: 'Quản trị Danh mục',
     shortLabel: 'Quản trị',
-    title: 'Quản trị Hệ thống & Kiểm toán',
-    subtitle: 'Tài khoản RBAC, danh bạ, kho thẻ RFID, hạ tầng và nhật ký',
+    title: 'Quản trị Danh mục & Hạ tầng',
+    subtitle: 'Quản lý nhân sự, khách hàng, phương tiện, kho thẻ RFID và hạ tầng bãi xe',
     icon: Shield,
     group: 'system',
-    roles: ['ADMIN', 'ACCOUNTANT'],
   },
 ];
-
-export const ROLE_LABELS: Record<UserRole, string> = {
-  ADMIN: 'Quản trị viên',
-  ACCOUNTANT: 'Thu ngân / Kế toán',
-  OPERATOR: 'Vận hành cổng',
-};

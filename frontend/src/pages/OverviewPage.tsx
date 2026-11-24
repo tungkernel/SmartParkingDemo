@@ -32,13 +32,9 @@ import { useToast } from '../context/ToastContext';
 import { apiRequest, formatDateTime, formatVnd, getErrorMessage } from '../lib/api';
 import { cn } from '../lib/cn';
 import { formatElapsedDuration, getHoursParked } from '../lib/time';
-import type { AuthUser, OverviewResponse, ParkingSlot } from '../types';
+import type { OverviewResponse, ParkingSlot } from '../types';
 
-interface OverviewPageProps {
-  user: AuthUser;
-}
-
-export function OverviewPage({ user }: OverviewPageProps) {
+export function OverviewPage() {
   const { notify } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -350,27 +346,23 @@ export function OverviewPage({ user }: OverviewPageProps) {
             </h2>
 
             <div className="flex flex-wrap items-center gap-2">
-              {user.role === 'ADMIN' && (
-                <>
-                  <Button
-                    variant="subtle"
-                    size="sm"
-                    loading={reconcileMutation.isPending}
-                    icon={<RefreshCw className="h-3.5 w-3.5" />}
-                    onClick={() => reconcileMutation.mutate()}
-                  >
-                    Đối soát ô & thẻ
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon={<Plus className="h-3.5 w-3.5" />}
-                    onClick={() => setAddModalOpen(true)}
-                  >
-                    Thêm vị trí
-                  </Button>
-                </>
-              )}
+              <Button
+                variant="subtle"
+                size="sm"
+                loading={reconcileMutation.isPending}
+                icon={<RefreshCw className="h-3.5 w-3.5" />}
+                onClick={() => reconcileMutation.mutate()}
+              >
+                Đối soát ô & thẻ
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Plus className="h-3.5 w-3.5" />}
+                onClick={() => setAddModalOpen(true)}
+              >
+                Thêm vị trí
+              </Button>
             </div>
           </div>
 
@@ -699,37 +691,32 @@ export function OverviewPage({ user }: OverviewPageProps) {
               </>
             )}
 
-            {(user.role === 'ADMIN' || user.role === 'OPERATOR') &&
-              selectedSlot.trangthai !== 0 && (
-                <div className="space-y-2">
-                  <Button
-                    variant={selectedSlot.trangthai === 1 ? 'secondary' : 'success'}
-                    loading={maintenanceMutation.isPending}
-                    icon={<Wrench className="h-4 w-4" />}
-                    onClick={() =>
-                      maintenanceMutation.mutate({
-                        slotId: selectedSlot.id,
-                        maintenance: selectedSlot.trangthai === 1,
-                      })
-                    }
-                    className="w-full"
-                  >
-                    {selectedSlot.trangthai === 1
-                      ? 'Khóa bảo trì vị trí này'
-                      : 'Mở lại vị trí trống'}
-                  </Button>
-                  {user.role === 'ADMIN' && (
-                    <Button
-                      variant="danger"
-                      icon={<Trash2 className="h-4 w-4" />}
-                      onClick={() => setDeleteSlotTarget(selectedSlot)}
-                      className="w-full"
-                    >
-                      Xóa ô đỗ này
-                    </Button>
-                  )}
-                </div>
-              )}
+            {selectedSlot.trangthai !== 0 && (
+              <div className="space-y-2">
+                <Button
+                  variant={selectedSlot.trangthai === 1 ? 'secondary' : 'success'}
+                  loading={maintenanceMutation.isPending}
+                  icon={<Wrench className="h-4 w-4" />}
+                  onClick={() =>
+                    maintenanceMutation.mutate({
+                      slotId: selectedSlot.id,
+                      maintenance: selectedSlot.trangthai === 1,
+                    })
+                  }
+                  className="w-full"
+                >
+                  {selectedSlot.trangthai === 1 ? 'Khóa bảo trì vị trí này' : 'Mở lại vị trí trống'}
+                </Button>
+                <Button
+                  variant="danger"
+                  icon={<Trash2 className="h-4 w-4" />}
+                  onClick={() => setDeleteSlotTarget(selectedSlot)}
+                  className="w-full"
+                >
+                  Xóa ô đỗ này
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Modal>
@@ -752,81 +739,79 @@ export function OverviewPage({ user }: OverviewPageProps) {
         onCancel={() => setDeleteSlotTarget(null)}
       />
 
-      {/* Admin: Add New Parking Slots Modal */}
-      {user.role === 'ADMIN' && (
-        <Modal
-          open={addModalOpen}
-          onClose={() => setAddModalOpen(false)}
-          maxWidthClass="max-w-md"
-          title="Thêm vị trí đỗ mới"
-          titleIcon={
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft">
-              <Plus className="h-4 w-4" />
-            </span>
-          }
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setAddModalOpen(false)}>
-                Hủy
-              </Button>
-              <Button
-                variant="primary"
-                loading={addSlotsMutation.isPending}
-                disabled={!effectiveAddZoneId}
-                onClick={() => addSlotsMutation.mutate()}
-              >
-                Thêm {addCount} vị trí
-              </Button>
-            </>
-          }
+      {/* Add New Parking Slots Modal */}
+      <Modal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        maxWidthClass="max-w-md"
+        title="Thêm vị trí đỗ mới"
+        titleIcon={
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft">
+            <Plus className="h-4 w-4" />
+          </span>
+        }
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setAddModalOpen(false)}>
+              Hủy
+            </Button>
+            <Button
+              variant="primary"
+              loading={addSlotsMutation.isPending}
+              disabled={!effectiveAddZoneId}
+              onClick={() => addSlotsMutation.mutate()}
+            >
+              Thêm {addCount} vị trí
+            </Button>
+          </>
+        }
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (effectiveAddZoneId) addSlotsMutation.mutate();
+          }}
+          className="p-5 space-y-4 text-xs"
         >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (effectiveAddZoneId) addSlotsMutation.mutate();
-            }}
-            className="p-5 space-y-4 text-xs"
-          >
-            <div>
-              <label
-                htmlFor={addZoneId}
-                className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
-              >
-                Khu vực thêm ô
-              </label>
-              <select
-                id={addZoneId}
-                value={effectiveAddZoneId}
-                onChange={(e) => setAddZoneIdVal(Number(e.target.value))}
-                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-input dark:bg-slate-800 px-3 py-2.5 text-sm"
-              >
-                {overview.zones.map((z) => (
-                  <option key={z.id} value={z.id}>
-                    {z.tenbaido} · Khu {z.ten} ({z.tong_cho} ô hiện có)
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label
-                htmlFor={addCountId}
-                className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
-              >
-                Số lượng ô cần tạo (1–50)
-              </label>
-              <input
-                id={addCountId}
-                type="number"
-                min={1}
-                max={50}
-                value={addCount}
-                onChange={(e) => setAddCount(Math.max(1, Math.min(50, Number(e.target.value))))}
-                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-input dark:bg-slate-800 px-3 py-2.5 text-sm font-mono-plate font-bold"
-              />
-            </div>
-          </form>
-        </Modal>
-      )}
+          <div>
+            <label
+              htmlFor={addZoneId}
+              className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+            >
+              Khu vực thêm ô
+            </label>
+            <select
+              id={addZoneId}
+              value={effectiveAddZoneId}
+              onChange={(e) => setAddZoneIdVal(Number(e.target.value))}
+              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-input dark:bg-slate-800 px-3 py-2.5 text-sm"
+            >
+              {overview.zones.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.tenbaido} · Khu {z.ten} ({z.tong_cho} ô hiện có)
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              htmlFor={addCountId}
+              className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+            >
+              Số lượng ô cần tạo (1–50)
+            </label>
+            <input
+              id={addCountId}
+              type="number"
+              min={1}
+              max={50}
+              value={addCount}
+              onChange={(e) => setAddCount(Math.max(1, Math.min(50, Number(e.target.value))))}
+              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-input dark:bg-slate-800 px-3 py-2.5 text-sm font-mono-plate font-bold"
+            />
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

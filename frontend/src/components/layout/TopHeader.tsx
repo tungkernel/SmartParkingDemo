@@ -1,10 +1,9 @@
-import { Clock, Menu, Moon, RefreshCw, Search, Sun, Wallet, Wifi, WifiOff } from 'lucide-react';
+import { Clock, Menu, Moon, RefreshCw, Search, Sun, Wifi, WifiOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { cn } from '../../lib/cn';
 import { formatVietnamClock } from '../../lib/time';
-import type { OperationalAlerts, ShiftRecord } from '../../types';
+import type { OperationalAlerts } from '../../types';
 import { AlertsPopover } from './AlertsPopover';
 import type { NavItem } from './navConfig';
 
@@ -12,8 +11,6 @@ interface TopHeaderProps {
   activeNav: NavItem | undefined;
   wsConnected: boolean;
   alerts: OperationalAlerts | undefined;
-  activeShift: ShiftRecord | null | undefined;
-  canAccessAdmin: boolean;
   onOpenMobileMenu: () => void;
   onOpenCommandPalette: () => void;
   onManualRefresh: () => void;
@@ -23,14 +20,11 @@ export function TopHeader({
   activeNav,
   wsConnected,
   alerts,
-  activeShift,
-  canAccessAdmin,
   onOpenMobileMenu,
   onOpenCommandPalette,
   onManualRefresh,
 }: TopHeaderProps) {
   const { theme, toggleTheme } = useTheme();
-  const navigate = useNavigate();
   const [clock, setClock] = useState(() => formatVietnamClock(new Date()));
   const [spinning, setSpinning] = useState(false);
 
@@ -77,30 +71,6 @@ export function TopHeader({
           <span>Tìm nhanh...</span>
           <kbd className="kbd-keycap">Ctrl K</kbd>
         </button>
-
-        {/* Active Shift Telemetry Pill */}
-        {activeShift !== undefined && (
-          <button
-            type="button"
-            onClick={() => navigate('/transactions?tab=shifts')}
-            title={
-              activeShift
-                ? `Đang trực ca #${activeShift.id} — nhấn để đối soát quỹ`
-                : 'Chưa mở ca trực — nhấn để mở ca làm việc'
-            }
-            className={cn(
-              'hidden xl:inline-flex items-center gap-1.5 h-9 rounded-xl border px-3 text-xs font-semibold transition-colors',
-              activeShift
-                ? 'border-emerald-200/90 dark:border-emerald-800/70 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/70'
-                : 'border-amber-200/90 dark:border-amber-800/70 bg-amber-50/80 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100/70',
-            )}
-          >
-            <Wallet className="h-3.5 w-3.5 shrink-0" />
-            <span className="tabular-nums">
-              {activeShift ? `Ca #${activeShift.id}` : 'Chưa mở ca'}
-            </span>
-          </button>
-        )}
 
         {/* Live Vietnam Clock */}
         <div
@@ -153,7 +123,7 @@ export function TopHeader({
         </button>
 
         {/* Actionable Alerts */}
-        <AlertsPopover alerts={alerts} canAccessAdmin={canAccessAdmin} />
+        <AlertsPopover alerts={alerts} />
 
         {/* Refresh Button */}
         <button

@@ -1,25 +1,15 @@
 from __future__ import annotations
 
-import json
 import math
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Optional
 
 from core.exceptions import ValidationError
 
 VN_TZ = timezone(timedelta(hours=7))
 VALID_PAYMENT_METHODS = ("Tiền mặt", "Chuyển khoản")
 MAX_PLATE_LEN = 15
-
-
-@dataclass(frozen=True)
-class AuditActor:
-    """Actor metadata propagated into domain transactions for atomic audit logging."""
-
-    account_id: Optional[int]
-    username: str
-    ip_address: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -122,52 +112,7 @@ def require_text(value: str, label: str, max_len: int) -> str:
     return cleaned
 
 
-def write_audit_in_tx(
-    cursor: Any,
-    actor: Optional[AuditActor],
-    action: str,
-    entity_type: str,
-    entity_id: Optional[Any] = None,
-    details: Optional[dict[str, Any]] = None,
-) -> None:
-    """Insert an audit log row inside the caller's active database transaction."""
-    if actor is None:
-        return
-    payload = json.dumps(details or {}, ensure_ascii=False, default=str)
-    cursor.execute(
-        """
-        INSERT INTO audit_logs (actor_id, actor_username, action, entity_type, entity_id, ip_address, details_json)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """,
-        (
-            actor.account_id,
-            (actor.username or "system")[:50],
-            action[:60],
-            entity_type[:40],
-            str(entity_id)[:64] if entity_id is not None else None,
-            actor.ip_address[:64] if actor.ip_address else None,
-            payload,
-        ),
-    )
-
-
 def calc_total_pages(total: int, page_size: int) -> int:
     if page_size <= 0:
         return 1
     return max(1, math.ceil(total / page_size))
-
-
-def mask_cccd(value: Optional[str]) -> Optional[str]:
-    """Redact citizen ID preserving only the last 4 characters."""
-    if not value:
-        return value
-    s = str(value)
-    return ("*" * max(0, len(s) - 4)) + s[-4:]
-
-
-def mask_phone(value: Optional[str]) -> Optional[str]:
-    """Redact phone number preserving only the last 3 characters."""
-    if not value:
-        return value
-    s = str(value)
-    return ("*" * max(0, len(s) - 3)) + s[-3:]

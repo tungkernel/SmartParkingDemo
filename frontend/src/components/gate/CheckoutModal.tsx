@@ -1,10 +1,27 @@
-import { AlertTriangle, Banknote, Check, CheckCircle2, Copy, LogOut, QrCode } from 'lucide-react';
+import {
+  AlertTriangle,
+  Banknote,
+  Check,
+  CheckCircle2,
+  Copy,
+  LogOut,
+  QrCode,
+  UserCheck,
+} from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useId, useState } from 'react';
 import { formatDateTime, formatVnd } from '../../lib/api';
 import { cn } from '../../lib/cn';
+import { formatEmployeeOption } from '../../lib/employee';
 import { buildVietQrPayload } from '../../lib/vietqr';
-import type { ActiveTurn, CardRecord, FeeQuote, PaymentMethod, VietQrConfig } from '../../types';
+import type {
+  ActiveTurn,
+  CardRecord,
+  CatalogEmployee,
+  FeeQuote,
+  PaymentMethod,
+  VietQrConfig,
+} from '../../types';
 import { Button } from '../ui/Button';
 import { LicensePlate } from '../ui/LicensePlate';
 import { Modal } from '../ui/Modal';
@@ -26,6 +43,9 @@ interface CheckoutModalProps {
   replacementCardId: number | '';
   onReplacementCardChange: (val: number | '') => void;
   availableCards: CardRecord[];
+  employees: CatalogEmployee[];
+  employeeId: number | '';
+  onEmployeeChange: (val: number) => void;
   vietQrConfig?: VietQrConfig;
   submitting: boolean;
   onConfirm: () => void;
@@ -45,6 +65,9 @@ export function CheckoutModal({
   replacementCardId,
   onReplacementCardChange,
   availableCards,
+  employees,
+  employeeId,
+  onEmployeeChange,
   vietQrConfig,
   submitting,
   onConfirm,
@@ -53,6 +76,7 @@ export function CheckoutModal({
   const feeInputId = useId();
   const repCardId = useId();
   const tenderId = useId();
+  const cashierId = useId();
 
   const [cashDraft, setCashDraft] = useState<{ turnId: number; value: number | '' } | null>(null);
   const [copiedTurnId, setCopiedTurnId] = useState<number | null>(null);
@@ -124,7 +148,7 @@ export function CheckoutModal({
           <Button
             variant="primary"
             loading={submitting}
-            disabled={loadingQuote || !quote}
+            disabled={loadingQuote || !quote || !employeeId}
             onClick={onConfirm}
           >
             {submitting ? 'Đang thanh toán...' : 'Xác nhận Check-out & In biên lai'}
@@ -237,6 +261,33 @@ export function CheckoutModal({
                   )}
                 </div>
               )}
+            </div>
+
+            {/* Cashier Attribution (Option A) */}
+            <div>
+              <label
+                htmlFor={cashierId}
+                className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
+              >
+                <UserCheck className="h-3.5 w-3.5 text-slate-400" />
+                Nhân viên thu ngân
+              </label>
+              <select
+                id={cashierId}
+                value={employeeId}
+                onChange={(e) => onEmployeeChange(Number(e.target.value))}
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-surface-input dark:bg-slate-800/90 px-3 py-2 text-xs font-medium text-slate-900 dark:text-slate-100 focus:border-brand-500 outline-none"
+              >
+                {employees.length === 0 ? (
+                  <option value="">Chưa có nhân viên</option>
+                ) : (
+                  employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {formatEmployeeOption(emp)}
+                    </option>
+                  ))
+                )}
+              </select>
             </div>
 
             {/* Payment Method */}

@@ -12,10 +12,9 @@ import type { OperationalAlerts } from '../../types';
 
 interface AlertsPopoverProps {
   alerts: OperationalAlerts | undefined;
-  canAccessAdmin: boolean;
 }
 
-export function AlertsPopover({ alerts, canAccessAdmin }: AlertsPopoverProps) {
+export function AlertsPopover({ alerts }: AlertsPopoverProps) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -174,15 +173,13 @@ export function AlertsPopover({ alerts, canAccessAdmin }: AlertsPopoverProps) {
                     <ShieldAlert className="h-3.5 w-3.5 text-slate-500" />
                     Thẻ báo Mất / Hỏng ({lostCards.length})
                   </span>
-                  {canAccessAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => jumpTo('/admin/cards?status=2')}
-                      className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:underline"
-                    >
-                      Mở kho thẻ
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => jumpTo('/admin/cards?status=2')}
+                    className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+                  >
+                    Mở kho thẻ
+                  </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {lostCards.slice(0, 12).map((c) => (

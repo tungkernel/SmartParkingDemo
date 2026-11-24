@@ -1,15 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  ArrowRight,
-  CarFront,
-  KeyRound,
-  Moon,
-  Palette,
-  RefreshCw,
-  Search,
-  Sun,
-  Wallet,
-} from 'lucide-react';
+import { ArrowRight, CarFront, Moon, Palette, RefreshCw, Search, Sun } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -25,7 +15,6 @@ interface CommandPaletteProps {
   onClose: () => void;
   visibleNav: NavItem[];
   onRefreshAll: () => void;
-  onOpenChangePassword: () => void;
 }
 
 interface CommandItem {
@@ -39,13 +28,7 @@ interface CommandItem {
   onSelect: () => void;
 }
 
-export function CommandPalette({
-  open,
-  onClose,
-  visibleNav,
-  onRefreshAll,
-  onOpenChangePassword,
-}: CommandPaletteProps) {
+export function CommandPalette({ open, onClose, visibleNav, onRefreshAll }: CommandPaletteProps) {
   const navigate = useNavigate();
   const { theme, toggleTheme, accent, setAccent } = useTheme();
   const [query, setQuery] = useState('');
@@ -130,18 +113,6 @@ export function CommandPalette({
 
     list.push(
       {
-        id: 'act-shifts',
-        group: 'Thao tác nhanh',
-        label: 'Mở / Chốt ca trực thu ngân',
-        hint: 'Đi tới bảng đối soát quỹ tiền mặt',
-        keywords: 'ca truc mo ca chot ca quy tien mat shift',
-        icon: <Wallet className="h-4 w-4 text-emerald-500" />,
-        onSelect: () => {
-          onClose();
-          navigate('/transactions?tab=shifts');
-        },
-      },
-      {
         id: 'act-theme',
         group: 'Thao tác nhanh',
         label: theme === 'dark' ? 'Chuyển sang Giao diện Sáng' : 'Chuyển sang Giao diện Tối',
@@ -182,18 +153,6 @@ export function CommandPalette({
           onClose();
         },
       },
-      {
-        id: 'act-password',
-        group: 'Thao tác nhanh',
-        label: 'Đổi mật khẩu tài khoản',
-        hint: 'Cập nhật mật khẩu đăng nhập an toàn',
-        keywords: 'mat khau password bao mat',
-        icon: <KeyRound className="h-4 w-4 text-amber-500" />,
-        onSelect: () => {
-          onClose();
-          onOpenChangePassword();
-        },
-      },
     );
 
     if (!q) return list;
@@ -207,7 +166,6 @@ export function CommandPalette({
     accent,
     navigate,
     onClose,
-    onOpenChangePassword,
     onRefreshAll,
     query,
     setAccent,

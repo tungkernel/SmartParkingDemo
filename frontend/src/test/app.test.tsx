@@ -2,25 +2,34 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import App from '../App';
 import { Modal } from '../components/ui/Modal';
 import { StatusBadge, paymentStatusTone } from '../components/ui/StatusBadge';
 import { ThemeProvider } from '../context/ThemeContext';
 import { ToastProvider } from '../context/ToastContext';
-import { AuthProvider } from '../context/AuthContext';
-import App from '../App';
 
-function renderWithProviders(initialPath = '/login') {
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function renderWithProviders(initialPath = '/gate') {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+    Promise.resolve(
+      new Response(JSON.stringify({}), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    ),
+  );
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <ThemeProvider>
         <ToastProvider>
-          <AuthProvider>
-            <MemoryRouter initialEntries={[initialPath]}>
-              <App />
-            </MemoryRouter>
-          </AuthProvider>
+          <MemoryRouter initialEntries={[initialPath]}>
+            <App />
+          </MemoryRouter>
         </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>,
@@ -28,11 +37,14 @@ function renderWithProviders(initialPath = '/login') {
 }
 
 describe('Smart Parking SPA UI primitives & routing', () => {
-  it('redirects unauthenticated users from protected routes to /login', () => {
-    renderWithProviders('/analytics');
-    expect(screen.getByRole('heading', { name: /đăng nhập hệ thống/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/tên đăng nhập/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/mật khẩu/i)).toBeInTheDocument();
+  it('opens main manager shell directly without login screen and hides removed modules', () => {
+    renderWithProviders('/gate');
+    expect(screen.getByRole('link', { name: /Cổng Vào \/ Ra \(POS\)/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Lịch sử Giao dịch/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Quản trị Danh mục/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /đăng nhập/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tài khoản RBAC/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Chưa mở ca/i)).not.toBeInTheDocument();
   });
 
   it('maps payment status to distinct semantic badge tones', () => {

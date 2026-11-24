@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { apiRequest, getErrorMessage } from '../../lib/api';
 import { cn } from '../../lib/cn';
-import type { AuthUser, CardDetailRecord } from '../../types';
+import type { CardDetailRecord } from '../../types';
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { EmptyState } from '../ui/EmptyState';
@@ -17,11 +17,7 @@ import { StatusBadge } from '../ui/StatusBadge';
 
 type CardStatusFilter = 'all' | '1' | '0' | '2';
 
-interface CardsTabProps {
-  user?: AuthUser;
-}
-
-export function CardsTab({ user }: CardsTabProps) {
+export function CardsTab() {
   const { notify } = useToast();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -30,7 +26,6 @@ export function CardsTab({ user }: CardsTabProps) {
   const [newCode, setNewCode] = useState('');
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<CardDetailRecord | null>(null);
-  const isAdmin = user?.role === 'ADMIN';
 
   const urlStatus = searchParams.get('status');
   const statusFilter: CardStatusFilter =
@@ -310,16 +305,14 @@ export function CardsTab({ user }: CardsTabProps) {
                           >
                             {c.trangthai === 1 ? 'Báo mất/hỏng' : 'Khôi phục'}
                           </button>
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              aria-label={`Xóa thẻ #${c.maso}`}
-                              onClick={() => setDeleteTarget(c)}
-                              className="rounded-xl border border-rose-200 dark:border-rose-900/80 p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            aria-label={`Xóa thẻ #${c.maso}`}
+                            onClick={() => setDeleteTarget(c)}
+                            className="rounded-xl border border-rose-200 dark:border-rose-900/80 p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       )}
                     </td>

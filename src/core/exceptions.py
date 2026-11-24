@@ -13,9 +13,5 @@ class ConflictError(ValidationError):
     """Raised when an operation conflicts with current entity state (HTTP 409)."""
 
 
-class AuthenticationError(ValueError):
-    """Raised when credentials or session tokens are invalid or revoked (HTTP 401)."""
-
-
 class DatabaseError(RuntimeError):
     """Raised when a database connection, transaction, or query fails (HTTP 503)."""
