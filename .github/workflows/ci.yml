@@ -20,9 +20,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
       - name: Ruff lint
-        run: ruff check src tests
+        run: ruff check src tests scripts
       - name: Mypy typecheck
-        run: mypy src
+        run: mypy src scripts
       - name: Pytest unit & API contract tests
         run: pytest tests -m "not integration" --cov=src --cov-report=term-missing --cov-fail-under=80
 
