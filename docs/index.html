@@ -664,7 +664,7 @@
           <div class="section-kicker">Cơ sở dữ liệu dbptit</div>
           <h2 class="section-title">13 bảng chuẩn ERD trên TiDB Cloud / MySQL 8</h2>
           <p class="section-sub">
-            Lược đồ chuẩn hóa hoàn toàn trong <code>Dump20261118.sql</code>, lưu trữ UTC <code>+00:00</code>, chống nhân bản JOIN bằng <code>ROW_NUMBER()</code> và khóa dòng chống xung đột.
+            Lược đồ chuẩn hóa hoàn toàn trong <code>database/Dump20261118.sql</code>, lưu trữ UTC <code>+00:00</code>, chống nhân bản JOIN bằng <code>ROW_NUMBER()</code> và khóa dòng chống xung đột.
           </p>
         </div>
 
@@ -720,7 +720,7 @@ python -m venv .venv
 .\.venv\Scripts\pip.exe install -r requirements-dev.txt
 
 <span class="cm"># Bước 2A: Nhấp đúp Mo_SmartParking.bat để tự mở server &amp; trình duyệt http://127.0.0.1:8000</span>
-<span class="cm"># (Tùy chọn) Nhấp đúp Tao_Shortcut_Desktop.bat để tạo lối tắt trên Desktop</span>
+<span class="cm"># (Tùy chọn) Nhấp đúp scripts\Tao_Shortcut_Desktop.bat để tạo lối tắt trên Desktop</span>
 
 <span class="cm"># Bước 2B: Hoặc chạy tách chế độ dev (Swagger API: http://127.0.0.1:8000/docs)</span>
 .\.venv\Scripts\uvicorn.exe src.api.main:app --reload --port 8000
@@ -772,7 +772,7 @@ cd frontend &amp;&amp; npm install &amp;&amp; npm run dev
             <strong>user-guide.md</strong>
             <span>Hướng dẫn vận hành 6 phân hệ</span>
           </a>
-          <a class="doc-link" href="https://github.com/tungkernel/SmartParkingDemo/blob/main/CHANGELOG.md" target="_blank" rel="noopener">
+          <a class="doc-link" href="https://github.com/tungkernel/SmartParkingDemo/blob/main/docs/CHANGELOG.md" target="_blank" rel="noopener">
             <strong>CHANGELOG.md</strong>
             <span>Lịch sử thay đổi phiên bản</span>
           </a>

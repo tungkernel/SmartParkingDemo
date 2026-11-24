@@ -4,7 +4,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-REST%20v1%20%2B%20WS-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19%20%2B%20TypeScript-61DAFB.svg)](https://react.dev/)
 [![Database](https://img.shields.io/badge/Database-TiDB%20Cloud%20%2F%20MySQL%208%20(13%20tables)-00758F.svg)](https://www.pingcap.com/tidb-cloud/)
-[![Version](https://img.shields.io/badge/Changelog-v2.2.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Changelog-v2.2.0-blue.svg)](docs/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## 1. Giới thiệu
@@ -15,9 +15,9 @@ Phiên bản **v2.2.0** tinh gọn toàn bộ mô hình vận hành dành cho **
 
 ## 2. Cơ sở dữ liệu `dbptit` (13 bảng ERD)
 
-![Sơ đồ thực thể quan hệ CSDL dbptit](so_do.png)
+![Sơ đồ thực thể quan hệ CSDL dbptit](docs/assets/so_do.png)
 
-Lược đồ hoàn chỉnh lưu tại [`Dump20261118.sql`](Dump20261118.sql) với đúng **13 bảng nghiệp vụ**, không sinh thêm bảng phụ lúc khởi động:
+Lược đồ hoàn chỉnh lưu tại [`database/Dump20261118.sql`](database/Dump20261118.sql) với đúng **13 bảng nghiệp vụ**, không sinh thêm bảng phụ lúc khởi động:
 
 | Nhóm bảng | Các bảng trong `dbptit` | Vai trò nghiệp vụ |
 | --- | --- | --- |
@@ -43,15 +43,25 @@ Lược đồ hoàn chỉnh lưu tại [`Dump20261118.sql`](Dump20261118.sql) v�
 
 ```text
 SmartParkingDemo/
-├── .github/workflows/ci.yml      # CI tự động: ruff, mypy, pytest --cov>=80%, Prettier, oxlint, tsc, vitest, vite build
+├── .github/
+│   ├── CONTRIBUTING.md           # Quy chuẩn kiến trúc, kiểm thử và commit
+│   └── workflows/ci.yml          # CI tự động: ruff, mypy, pytest --cov>=80%, Prettier, oxlint, tsc, vitest, vite build
+├── database/
+│   └── Dump20261118.sql          # Lược đồ chuẩn 13 bảng & dữ liệu mẫu dbptit
+├── scripts/
+│   ├── launch_app.py             # Launcher Python (probe /health/live, auto npm run build, mở http://127.0.0.1:8000)
+│   └── Tao_Shortcut_Desktop.bat  # Tùy chọn tạo shortcut "Smart Parking PTIT" trên Desktop Windows
+├── docs/
+│   ├── assets/                   # Logo & sơ đồ thực thể quan hệ (so_do.png)
+│   ├── index.html & 404.html     # Trang giới thiệu tĩnh cho GitHub Pages
+│   ├── architecture.md           # Kiến trúc phân tầng & quy ước giao dịch CSDL
+│   ├── setup-guide.md            # Hướng dẫn cài đặt cục bộ & mạng LAN
+│   ├── user-guide.md             # Hướng dẫn vận hành 6 phân hệ SPA
+│   ├── CHANGELOG.md              # Lịch sử phiên bản dự án
+│   └── Bao_cao_du_an.pdf, ...    # Tài liệu báo cáo, kịch bản demo & slide thuyết trình PTIT
 ├── Mo_SmartParking.bat           # File chạy 1-click trên Windows: tự kiểm tra build, mở server & trình duyệt
-├── Tao_Shortcut_Desktop.bat      # Tùy chọn tạo shortcut "Smart Parking PTIT" trên Desktop Windows
-├── scripts/launch_app.py         # Launcher Python (probe /health/live, auto npm run build, mở http://127.0.0.1:8000)
 ├── pyproject.toml                # Cấu hình đóng gói v2.2.0, pytest, coverage, ruff, mypy
 ├── .env.example                  # Mẫu biến môi trường (TIDB_*, CORS_ALLOWED_ORIGINS, VIETQR_*)
-├── Dump20261118.sql              # Lược đồ chuẩn 13 bảng & dữ liệu mẫu dbptit
-├── so_do.png                     # Sơ đồ thực thể quan hệ (ERD) 13 bảng dbptit
-├── index.html                    # Trang giới thiệu tĩnh cho GitHub Pages
 ├── src/
 │   ├── core/                     # Settings (pydantic-settings), Domain Exceptions, JSON Logging
 │   ├── models/                   # Pydantic v2 entities cho 13 bảng dbptit & response DTOs
@@ -74,8 +84,7 @@ SmartParkingDemo/
 │       ├── components/           # UI primitives, TicketPrintModal 80mm, Gate POS, Passes, Admin tabs
 │       ├── pages/                # 6 trang vận hành lazy-loaded
 │       └── test/                 # Bộ kiểm thử Vitest + React Testing Library
-├── tests/                        # Bộ kiểm thử Pytest (Domain, API v1, Security headers, WebSocket, MySQL integration)
-└── docs/                         # Tài liệu kiến trúc, cài đặt, hướng dẫn sử dụng, báo cáo PDF & slide
+└── tests/                        # Bộ kiểm thử Pytest (Domain, API v1, Security headers, WebSocket, MySQL integration)
 ```
 
 ## 5. Khởi chạy nhanh & Cài đặt (Windows PowerShell)
@@ -91,7 +100,7 @@ SmartParkingDemo/
    .\.venv\Scripts\pip.exe install -r requirements-dev.txt
    ```
 2. Nhấp đúp **`Mo_SmartParking.bat`**: script tự động kiểm tra (hoặc build `frontend/dist/` nếu chưa có), khởi động FastAPI ở `http://127.0.0.1:8000` và mở thẳng trình duyệt vào hệ thống.
-3. *(Tùy chọn)* Nhấp đúp **`Tao_Shortcut_Desktop.bat`** để tạo lối tắt **Smart Parking PTIT** ngoài Desktop.
+3. *(Tùy chọn)* Nhấp đúp **`scripts\Tao_Shortcut_Desktop.bat`** để tạo lối tắt **Smart Parking PTIT** ngoài Desktop.
 
 ### Cách 2 — Chạy tách Backend / Frontend khi phát triển hoặc qua mạng LAN
 
@@ -130,7 +139,7 @@ npm run build
 
 ## 7. Tài liệu & Thành viên Nhóm 10
 
-- **Tài liệu kỹ thuật:** [`docs/architecture.md`](docs/architecture.md) · [`docs/setup-guide.md`](docs/setup-guide.md) · [`docs/user-guide.md`](docs/user-guide.md) · [`CHANGELOG.md`](CHANGELOG.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- **Tài liệu kỹ thuật:** [`docs/architecture.md`](docs/architecture.md) · [`docs/setup-guide.md`](docs/setup-guide.md) · [`docs/user-guide.md`](docs/user-guide.md) · [`docs/CHANGELOG.md`](docs/CHANGELOG.md) · [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md)
 - **Tài liệu đồ án:** [`docs/Bao_cao_du_an.pdf`](docs/Bao_cao_du_an.pdf) · [`docs/Kich_ban_demo.pdf`](docs/Kich_ban_demo.pdf) · [`docs/Cơ sở dữ liệu.pptx`](docs/Cơ%20sở%20dữ%20liệu.pptx)
 
 **Thành viên Nhóm 10 (Lớp D24CQCE04-B — GVHD: Nguyễn Trọng Khánh):**

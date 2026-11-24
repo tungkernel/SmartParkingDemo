@@ -11,7 +11,7 @@ Tất cả các thay đổi đáng chú ý của dự án **Smart Parking System
 - **Đơn giản hóa Quản trị Hệ thống:** Gom màn hình `/admin` từ 5 tab xuống còn 3 tab cốt lõi (`Nhân sự & Danh bạ`, `Kho thẻ RFID`, `Hạ tầng bãi/khu`) và tinh gọn giao diện trang Giao dịch (`/transactions`).
 
 ### Added
-- **Trình khởi chạy 1-click trên Windows:** Thêm `Mo_SmartParking.bat`, `scripts/launch_app.py` (tự động build `frontend/dist` nếu thiếu, probe `/health/live`, phát hiện trùng instance hoặc xung đột cổng, mở trình duyệt tự động) và `Tao_Shortcut_Desktop.bat` (tạo lối tắt `Smart Parking PTIT` trên Desktop).
+- **Trình khởi chạy 1-click trên Windows:** Thêm `Mo_SmartParking.bat`, `scripts/launch_app.py` (tự động build `frontend/dist` nếu thiếu, probe `/health/live`, phát hiện trùng instance hoặc xung đột cổng, mở trình duyệt tự động) và `scripts/Tao_Shortcut_Desktop.bat` (tạo lối tắt `Smart Parking PTIT` trên Desktop).
 
 ### Removed
 - Xóa các module đăng nhập, phân quyền, đối soát ca làm việc và startup migration: `src/services/auth_service.py`, `src/services/migration_service.py`, `src/api/v1/routers/auth.py`, `.streamlit/config.toml`, cùng các component/trang frontend tương ứng (`LoginPage`, `AuthContext`, `ChangePasswordModal`, `TransactionsShiftsPage`, `AccountsTab`, `AuditLogsTab`, `AuditLogDrawer`, `PasswordInput`) và các micro-docs trùng lặp (`docs/LICENSE.md`, `docs/IDEA.md`, `docs/MVP.md`, `docs/PLAN.md`, `docs/PROJECT.md`, `docs/SPEC.md`).
@@ -46,7 +46,7 @@ Tất cả các thay đổi đáng chú ý của dự án **Smart Parking System
 
 ### Added
 - Kiểm tra khóa thẻ và kiểm tra trùng vé tháng còn hiệu lực trong `register_monthly_pass` (`SELECT ... FOR UPDATE`).
-- Xuất bản bộ tài liệu PDF hoàn chỉnh trong `docs/`: [Kich_ban_demo.pdf](docs/Kich_ban_demo.pdf) và [Bao_cao_du_an.pdf](docs/Bao_cao_du_an.pdf).
+- Xuất bản bộ tài liệu PDF hoàn chỉnh trong `docs/`: [Kich_ban_demo.pdf](Kich_ban_demo.pdf) và [Bao_cao_du_an.pdf](Bao_cao_du_an.pdf).
 
 ## [1.2.0] - 2026-11-19
 
@@ -61,4 +61,4 @@ Tất cả các thay đổi đáng chú ý của dự án **Smart Parking System
 ## [1.0.0] - 2026-11-18
 
 ### Added
-- Khởi tạo lược đồ `dbptit` (`Dump20261118.sql`), `DBService`, `ParkingService` và nguyên mẫu ban đầu.
+- Khởi tạo lược đồ `dbptit` (`database/Dump20261118.sql`), `DBService`, `ParkingService` và nguyên mẫu ban đầu.

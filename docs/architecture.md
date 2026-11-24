@@ -24,9 +24,9 @@ graph LR
 
 ## 3. Lược đồ CSDL `dbptit` (13 bảng chuẩn ERD)
 
-![Sơ đồ thực thể quan hệ CSDL dbptit](../so_do.png)
+![Sơ đồ thực thể quan hệ CSDL dbptit](assets/so_do.png)
 
-Toàn bộ lược đồ và dữ liệu nền định nghĩa trong [`Dump20261118.sql`](../Dump20261118.sql), gồm đúng 13 bảng:
+Toàn bộ lược đồ và dữ liệu nền định nghĩa trong [`database/Dump20261118.sql`](../database/Dump20261118.sql), gồm đúng 13 bảng:
 - **Hạ tầng & Biểu giá:** `baidoxe`, `khuvucdo`, `vitrido`, `loaiphuongtien`, `loaikhachhang`, `banggia`.
 - **Nhân sự, Khách hàng, Xe & Thẻ:** `nhanvien`, `khachhang`, `phuongtien`, `thexe`, `vethang`.
 - **Vận hành & Hóa đơn:** `luotdo`, `thanhtoan`.

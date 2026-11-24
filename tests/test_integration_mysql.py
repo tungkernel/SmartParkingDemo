@@ -34,7 +34,7 @@ def _integration_db() -> DBService:
 
 
 def _load_sql_dump(db: DBService, dump_path: Path) -> None:
-    """Execute Dump20261118.sql statements cleanly against an empty test schema."""
+    """Execute database/Dump20261118.sql statements cleanly against an empty test schema."""
     raw = dump_path.read_text(encoding="utf-8")
     statements: list[str] = []
     buf: list[str] = []
@@ -59,10 +59,10 @@ def _load_sql_dump(db: DBService, dump_path: Path) -> None:
 
 
 def test_full_mysql_dump_and_domain_workflows() -> None:
-    """End-to-end verification against live MySQL 8.4 starting from Dump20261118.sql."""
+    """End-to-end verification against live MySQL 8.4 starting from database/Dump20261118.sql."""
     db = _integration_db()
-    dump_file = ROOT / "Dump20261118.sql"
-    assert dump_file.exists(), "Dump20261118.sql must exist at repository root"
+    dump_file = ROOT / "database" / "Dump20261118.sql"
+    assert dump_file.exists(), "database/Dump20261118.sql must exist"
 
     _load_sql_dump(db, dump_file)
 

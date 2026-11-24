@@ -3,7 +3,7 @@
 ## 1. Yêu cầu môi trường
 - **Python:** 3.11 trở lên (khuyến nghị 3.12 / 3.14).
 - **Node.js:** 20+ (khuyến nghị 24 LTS) và `npm`.
-- **Database:** TiDB Cloud Serverless hoặc MySQL 8.x đã nạp sẵn lược đồ 13 bảng từ [`Dump20261118.sql`](../Dump20261118.sql).
+- **Database:** TiDB Cloud Serverless hoặc MySQL 8.x đã nạp sẵn lược đồ 13 bảng từ [`database/Dump20261118.sql`](../database/Dump20261118.sql).
 
 ## 2. Cấu hình biến môi trường (`.env`)
 
@@ -40,7 +40,7 @@ python -m venv .venv
 - Nhấp đúp **`Mo_SmartParking.bat`** (hoặc chạy `.\Mo_SmartParking.bat` trong terminal).
 - Script [`scripts/launch_app.py`](../scripts/launch_app.py) sẽ tự kiểm tra xem cổng `8000` đã chạy Smart Parking chưa; nếu `frontend/dist/` chưa tồn tại thì tự chạy `npm install` và `npm run build`, sau đó bật FastAPI tại `http://127.0.0.1:8000` và mở trình duyệt mặc định.
 - Tham số hỗ trợ khi chạy qua terminal: `.\Mo_SmartParking.bat --port 8001 --no-browser` hoặc `--host 0.0.0.0`.
-- Để ghim biểu tượng mở nhanh ngoài màn hình nền, chạy **`Tao_Shortcut_Desktop.bat`**.
+- Để ghim biểu tượng mở nhanh ngoài màn hình nền, chạy **`scripts\Tao_Shortcut_Desktop.bat`**.
 
 ### Bước 2B: Chạy tách Backend & Frontend khi phát triển (Hot Reload)
 ```powershell
