@@ -31,3 +31,9 @@ build/
 !.env.example
 .streamlit/secrets.toml
 docs/Loi_van_thuyet_trinh.pdf
+docs/Loi_van_thuyet_trinh.html
+docs/Kich_ban_demo.pdf
+docs/Kich_ban_demo.html
+docs/Bo_cau_hoi_van_dap_CSDL.pdf
+docs/Bo_cau_hoi_van_dap_CSDL.html
+docs/Bao_cao_du_an.html
