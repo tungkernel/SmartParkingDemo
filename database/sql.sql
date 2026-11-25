@@ -24,8 +24,8 @@ DROP TABLE IF EXISTS `baidoxe`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `baidoxe` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `tenbaido` varchar(20) DEFAULT NULL,
-  `diadiem` varchar(30) DEFAULT NULL,
+  `tenbaido` varchar(100) NOT NULL,
+  `diadiem` varchar(255) NOT NULL,
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin AUTO_INCREMENT=30001;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -49,13 +49,14 @@ DROP TABLE IF EXISTS `banggia`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `banggia` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `loaive` varchar(5) DEFAULT NULL,
+  `loaive` varchar(20) NOT NULL,
   `dongia` int DEFAULT NULL,
   `idlpt` int DEFAULT NULL,
   `idlkh` int DEFAULT NULL,
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
   KEY `fk_banggia_loaiphuongtien` (`idlpt`),
   KEY `fk_banggia_loaikhachhang` (`idlkh`),
+  UNIQUE KEY `uk_banggia_rule` (`loaive`,`idlpt`,`idlkh`),
   CONSTRAINT `fk_banggia_loaiphuongtien` FOREIGN KEY (`idlpt`) REFERENCES `loaiphuongtien` (`id`),
   CONSTRAINT `fk_banggia_loaikhachhang` FOREIGN KEY (`idlkh`) REFERENCES `loaikhachhang` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin AUTO_INCREMENT=30001;
@@ -80,7 +81,7 @@ DROP TABLE IF EXISTS `khachhang`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `khachhang` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `hoten` varchar(30) DEFAULT NULL,
+  `hoten` varchar(60) NOT NULL,
   `sdt` varchar(20) NOT NULL,
   `cccd` varchar(15) NOT NULL,
   `idlkh` int DEFAULT NULL,
@@ -111,9 +112,10 @@ DROP TABLE IF EXISTS `khuvucdo`;
 CREATE TABLE `khuvucdo` (
   `id` int NOT NULL AUTO_INCREMENT,
   `idbdx` int DEFAULT NULL,
-  `ten` varchar(5) NOT NULL,
+  `ten` varchar(20) NOT NULL,
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
   KEY `khuvucdo` (`idbdx`),
+  UNIQUE KEY `uk_khuvucdo_lot_ten` (`idbdx`,`ten`),
   CONSTRAINT `fk_khuvucdo_baidoxe` FOREIGN KEY (`idbdx`) REFERENCES `baidoxe` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin AUTO_INCREMENT=30001;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -137,7 +139,7 @@ DROP TABLE IF EXISTS `loaikhachhang`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `loaikhachhang` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `tenloai` varchar(10) DEFAULT NULL,
+  `tenloai` varchar(30) NOT NULL,
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin AUTO_INCREMENT=30001;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -161,7 +163,7 @@ DROP TABLE IF EXISTS `loaiphuongtien`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `loaiphuongtien` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `tenloai` varchar(10) DEFAULT NULL,
+  `tenloai` varchar(30) NOT NULL,
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin AUTO_INCREMENT=30001;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -198,6 +200,7 @@ CREATE TABLE `luotdo` (
   KEY `fk_luotdo_phuongtien` (`idpt`),
   KEY `fk_luotdo_thexe` (`idtx`),
   KEY `fk_luotdo_banggia` (`idbg`),
+  KEY `idx_luotdo_time` (`giovao`,`giora`),
   CONSTRAINT `fk_luotdo_phuongtien` FOREIGN KEY (`idpt`) REFERENCES `phuongtien` (`id`),
   CONSTRAINT `fk_luotdo_banggia` FOREIGN KEY (`idbg`) REFERENCES `banggia` (`id`),
   CONSTRAINT `fk_luotdo_vitrido` FOREIGN KEY (`idvtd`) REFERENCES `vitrido` (`id`),
@@ -226,13 +229,13 @@ DROP TABLE IF EXISTS `nhanvien`;
 CREATE TABLE `nhanvien` (
   `id` int NOT NULL,
   `idbdx` int DEFAULT NULL,
-  `hoten` varchar(30) DEFAULT NULL,
-  `diachi` varchar(50) DEFAULT NULL,
+  `hoten` varchar(60) DEFAULT NULL,
+  `diachi` varchar(255) DEFAULT NULL,
   `ngaysinh` date DEFAULT NULL,
-  `chucvu` varchar(10) NOT NULL,
-  `sdt` varchar(10) NOT NULL,
+  `chucvu` varchar(30) NOT NULL,
+  `sdt` varchar(15) NOT NULL,
   `ngaybatdau` date DEFAULT NULL,
-  `email` varchar(30) DEFAULT NULL,
+  `email` varchar(100) DEFAULT NULL,
   `cccd` varchar(15) DEFAULT NULL,
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
   KEY `nhanvien` (`idbdx`),
@@ -247,7 +250,7 @@ CREATE TABLE `nhanvien` (
 
 LOCK TABLES `nhanvien` WRITE;
 /*!40000 ALTER TABLE `nhanvien` DISABLE KEYS */;
-INSERT INTO `nhanvien` VALUES (3,3,'Lê Minh Cường','Cầu Giấy, HN','1992-11-05','Quản lý','0912345673','2023-09-15','cuong@ptit.edu.vn','001092000333'),(1001,1,'Nguyễn Văn An','Hà Đông, Hà Nội','1994-05-14','Bảo vệ','0912345671','2024-01-15','an.nv@ptit.edu.vn','001094001001'),(1002,2,'Trần Quốc Bảo','Thanh Xuân, Hà Nội','1996-08-21','Bảo vệ','0912345672','2024-02-10','bao.tq@ptit.edu.vn','001096001002'),(1003,3,'Phạm Minh Đức','Nam Từ Liêm, Hà Nội','1993-11-03','Bảo vệ','0912345673','2023-11-20','duc.pm@ptit.edu.vn','001093001003'),(2001,1,'Trần Thị Bình','Đống Đa, Hà Nội','1998-04-19','Thu ngân','0912345674','2024-03-01','binh.tt@ptit.edu.vn','001098002001'),(2002,2,'Lê Thu Hà','Cầu Giấy, Hà Nội','1999-09-25','Thu ngân','0912345675','2024-04-12','ha.lt@ptit.edu.vn','001099002002'),(2003,3,'Hoàng Lan Anh','Hoàng Mai, Hà Nội','1997-12-08','Thu ngân','0912345676','2024-05-05','anh.hl@ptit.edu.vn','001097002003');
+INSERT INTO `nhanvien` VALUES (3,NULL,'Lê Minh Cường','Cầu Giấy, HN','1992-11-05','Quản lý','0912345673','2023-09-15','cuong@ptit.edu.vn','001092000333'),(1001,1,'Nguyễn Văn An','Hà Đông, Hà Nội','1994-05-14','Bảo vệ','0912345671','2024-01-15','an.nv@ptit.edu.vn','001094001001'),(1002,2,'Trần Quốc Bảo','Thanh Xuân, Hà Nội','1996-08-21','Bảo vệ','0912345672','2024-02-10','bao.tq@ptit.edu.vn','001096001002'),(1003,3,'Phạm Minh Đức','Nam Từ Liêm, Hà Nội','1993-11-03','Bảo vệ','0912345673','2023-11-20','duc.pm@ptit.edu.vn','001093001003'),(2001,1,'Trần Thị Bình','Đống Đa, Hà Nội','1998-04-19','Thu ngân','0912345674','2024-03-01','binh.tt@ptit.edu.vn','001098002001'),(2002,2,'Lê Thu Hà','Cầu Giấy, Hà Nội','1999-09-25','Thu ngân','0912345675','2024-04-12','ha.lt@ptit.edu.vn','001099002002'),(2003,3,'Hoàng Lan Anh','Hoàng Mai, Hà Nội','1997-12-08','Thu ngân','0912345676','2024-05-05','anh.hl@ptit.edu.vn','001097002003');
 /*!40000 ALTER TABLE `nhanvien` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -260,7 +263,7 @@ DROP TABLE IF EXISTS `phuongtien`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `phuongtien` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `bienso` varchar(8) DEFAULT NULL,
+  `bienso` varchar(15) NOT NULL,
   `idlpt` int DEFAULT NULL,
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
   UNIQUE KEY `bienso` (`bienso`),
@@ -288,17 +291,20 @@ DROP TABLE IF EXISTS `thanhtoan`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `thanhtoan` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `idld` int NOT NULL,
+  `idld` int DEFAULT NULL,
   `chiphi` int NOT NULL,
   `giothanhtoan` datetime NOT NULL,
-  `trangthai` varchar(10) NOT NULL,
+  `trangthai` varchar(30) NOT NULL,
   `idnv` int NOT NULL,
-  `loaithanhtoan` tinyint(1) DEFAULT NULL,
+  `loaithanhtoan` varchar(30) NOT NULL DEFAULT 'Tiền mặt',
   `idvt` int DEFAULT NULL,
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
   KEY `fk_thoantoan_luotdo` (`idld`),
   KEY `fk_thanhtoan_nhanvien` (`idnv`),
   KEY `fk_thanhtoan_vethang` (`idvt`),
+  UNIQUE KEY `uk_thanhtoan_idld` (`idld`),
+  KEY `idx_thanhtoan_time_status` (`giothanhtoan`,`trangthai`),
+  KEY `idx_thanhtoan_shift_recon` (`idnv`,`trangthai`,`giothanhtoan`),
   CONSTRAINT `fk_thoantoan_luotdo` FOREIGN KEY (`idld`) REFERENCES `luotdo` (`id`),
   CONSTRAINT `fk_thanhtoan_vethang` FOREIGN KEY (`idvt`) REFERENCES `vethang` (`id`),
   CONSTRAINT `fk_thanhtoan_nhanvien` FOREIGN KEY (`idnv`) REFERENCES `nhanvien` (`id`)
@@ -311,7 +317,7 @@ CREATE TABLE `thanhtoan` (
 
 LOCK TABLES `thanhtoan` WRITE;
 /*!40000 ALTER TABLE `thanhtoan` DISABLE KEYS */;
-INSERT INTO `thanhtoan` VALUES (1,1,10000,'2026-11-12 12:15:00','Thành công',2001,0,NULL),(2,2,5000,'2026-11-12 15:15:00','Thành công',2001,0,NULL),(3,3,3000,'2026-11-12 14:15:00','Thành công',2002,0,NULL),(4,4,10000,'2026-11-13 17:15:00','Thành công',2002,0,NULL),(5,5,5000,'2026-11-13 16:15:00','Thành công',2003,0,NULL),(6,6,0,'2026-11-13 18:15:00','Thành công',2001,1,1),(7,7,5000,'2026-11-14 13:15:00','Thành công',2001,0,NULL),(8,8,3000,'2026-11-14 17:15:00','Thành công',2002,0,NULL),(9,9,10000,'2026-11-15 15:15:00','Thành công',2003,0,NULL),(10,10,5000,'2026-11-15 18:15:00','Thành công',2001,0,NULL),(11,11,0,'2026-11-15 16:15:00','Thành công',2002,1,2),(12,12,10000,'2026-11-16 14:15:00','Thành công',2001,0,NULL),(13,13,5000,'2026-11-16 17:15:00','Thành công',2003,0,NULL),(14,14,3000,'2026-11-16 11:15:00','Thành công',2001,0,NULL),(15,15,10000,'2026-11-17 16:15:00','Thành công',2002,0,NULL),(16,16,5000,'2026-11-17 18:15:00','Thành công',2003,0,NULL),(17,17,5000,'2026-11-17 19:15:00','Thành công',2001,0,NULL),(18,18,10000,'2026-11-18 21:25:10','Thành công',2001,0,NULL),(19,19,5000,'2026-11-18 20:25:10','Thành công',2002,0,NULL),(20,20,3000,'2026-11-18 22:25:10','Thành công',2003,0,NULL),(21,21,10000,'2026-11-18 19:25:10','Thành công',2001,0,NULL);
+INSERT INTO `thanhtoan` VALUES (1,1,10000,'2026-11-12 12:15:00','Thành công',2001,'Tiền mặt',NULL),(2,2,5000,'2026-11-12 15:15:00','Thành công',2001,'Tiền mặt',NULL),(3,3,3000,'2026-11-12 14:15:00','Thành công',2002,'Tiền mặt',NULL),(4,4,10000,'2026-11-13 17:15:00','Thành công',2002,'Tiền mặt',NULL),(5,5,5000,'2026-11-13 16:15:00','Thành công',2003,'Tiền mặt',NULL),(6,6,0,'2026-11-13 18:15:00','Thành công',2001,'Tiền mặt',1),(7,7,5000,'2026-11-14 13:15:00','Thành công',2001,'Tiền mặt',NULL),(8,8,3000,'2026-11-14 17:15:00','Thành công',2002,'Tiền mặt',NULL),(9,9,10000,'2026-11-15 15:15:00','Thành công',2003,'Tiền mặt',NULL),(10,10,5000,'2026-11-15 18:15:00','Thành công',2001,'Tiền mặt',NULL),(11,11,0,'2026-11-15 16:15:00','Thành công',2002,'Tiền mặt',2),(12,12,10000,'2026-11-16 14:15:00','Thành công',2001,'Tiền mặt',NULL),(13,13,5000,'2026-11-16 17:15:00','Thành công',2003,'Tiền mặt',NULL),(14,14,3000,'2026-11-16 11:15:00','Thành công',2001,'Tiền mặt',NULL),(15,15,10000,'2026-11-17 16:15:00','Thành công',2002,'Tiền mặt',NULL),(16,16,5000,'2026-11-17 18:15:00','Thành công',2003,'Tiền mặt',NULL),(17,17,5000,'2026-11-17 19:15:00','Thành công',2001,'Tiền mặt',NULL),(18,18,10000,'2026-11-18 21:25:10','Thành công',2001,'Tiền mặt',NULL),(19,19,5000,'2026-11-18 20:25:10','Thành công',2002,'Tiền mặt',NULL),(20,20,3000,'2026-11-18 22:25:10','Thành công',2003,'Tiền mặt',NULL),(21,21,10000,'2026-11-18 19:25:10','Thành công',2001,'Tiền mặt',NULL);
 /*!40000 ALTER TABLE `thanhtoan` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -361,6 +367,9 @@ CREATE TABLE `vethang` (
   KEY `fk_vethang_phuongtien` (`idpt`),
   KEY `fk_vethang_banggia` (`idbg`),
   KEY `fk_vethang_khachhang` (`idkh`),
+  KEY `idx_vethang_dates` (`ngaybatdau`,`ngayketthuc`),
+  KEY `idx_vethang_pt_dates` (`idpt`,`ngaybatdau`,`ngayketthuc`),
+  KEY `idx_vethang_tx_end` (`idtx`,`ngayketthuc`),
   CONSTRAINT `fk_vethang_phuongtien` FOREIGN KEY (`idpt`) REFERENCES `phuongtien` (`id`),
   CONSTRAINT `fk_vethang_banggia` FOREIGN KEY (`idbg`) REFERENCES `banggia` (`id`),
   CONSTRAINT `fk_vethang_khachhang` FOREIGN KEY (`idkh`) REFERENCES `khachhang` (`id`),
@@ -416,4 +425,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-11-19 16:00:18
+-- Dump completed on 2026-11-25 16:21:07
